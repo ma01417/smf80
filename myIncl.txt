@@ -1,0 +1,126 @@
+box.c:#include <stdio.h>
+box.c:#include <stdlib.h>
+box.c:#include <string.h>
+chkparm.c:#include <stdio.h>
+chkparm.c:#include <stdlib.h>
+chkparm.c:#include <string.h>
+chkparm.c:#include "smf80ext.h"
+chkparm.c:#include "smf80sup.h"
+createStr.c:#include <stdlib.h>
+createStr.c:#include <string.h>
+createStr.c:#include <assert.h>
+createStr.c:#include <stdio.h>
+crfilter.c:#include <stdlib.h>
+crfilter.c:#include <string.h>
+crfilter.c:#include <stdio.h>
+crfilter.c:#include "smf80ext.h"
+crparm.c:#include <stdlib.h>
+crparm.c:#include <string.h>
+crparm.c:#include <stdio.h>
+crparm.c:#include "smf80ext.h"
+findevt.c:#include <stdio.h>
+findevt.c:#include <stdlib.h>
+findevt.c:#include <string.h>
+findevt.c:#include "smf80ext.h"
+fltparm.c:#include <stdio.h>
+fltparm.c:#include <stdlib.h>
+fltparm.c:#include <string.h>
+fltparm.c:#include "smf80ext.h"
+fmtDtTm.c:#include <stdio.h>
+fmtDtTm.c:#include <stdlib.h>
+fmtDtTm.c:#include <string.h>
+fmtDtTm.c:#include "smf80ext.h"
+getCls.c:#include <stdio.h>
+getCls.c:#include <stdlib.h>
+getCls.c:#include <string.h>
+getCls.c:#include <ctype.h>
+getCls.c:#include "smf80ext.h"
+getEvq.c:#include <stdio.h>
+getEvq.c:#include <stdlib.h>
+getEvq.c:#include <string.h>
+getEvq.c:#include <ctype.h>
+getEvq.c:#include "smf80ext.h"
+getEvt.c:#include <stdio.h>
+getEvt.c:#include <stdlib.h>
+getEvt.c:#include <string.h>
+getEvt.c:#include <ctype.h>
+getEvt.c:#include <assert.h>
+getEvt.c:#include "smf80ext.h"
+getExt.c:#include <stdio.h>
+getExt.c:#include <stdlib.h>
+getExt.c:#include <string.h>
+getExt.c:#include <libgen.h>
+getParm.c:#include <ctype.h>
+getParm.c:#include <stdio.h>
+getParm.c:#include <stdlib.h>
+getParm.c:#include <string.h>
+getParm.c:#include <stdarg.h>
+getParm.c:  #include <malloc.h>     // necessaria per compilatore GNU CC
+getParm.c:#include <assert.h>
+getParm.c:#include "smf80ext.h"     // definizioni di supporto : typedef e strutture
+getParm.c:#include "smf80sup.h"     // definizioni di supporto : costanti e variabili
+getSez.c:#include <stdio.h>
+getSez.c:#include <stdlib.h>
+getSez.c:#include <string.h>
+getSez.c:#include <ctype.h>
+getSez.c:#include "smf80ext.h"
+getlrow.c:#include <stdio.h>
+getlrow.c:#include <stdlib.h>
+getlrow.c:#include <string.h>
+getlrow.c:#include "smf80ext.h"
+gettrow.c:#include <stdio.h>
+gettrow.c:#include <stdlib.h>
+gettrow.c:#include <string.h>
+gettrow.c:#include "smf80ext.h"
+gettrow.c:#include "smf80sup.h"
+hexprt.c:#include <stdio.h>
+hexprt.c:#include <stdlib.h>
+hexprt.c:#include <string.h>
+makeargv.c:#include <stdio.h>
+makeargv.c:#include <stdlib.h>
+makeargv.c:#include <string.h>
+makeargv.c:#include "smf80ext.h"
+openf.c:#include <stdio.h>
+openf.c:#include <stdlib.h>
+openf.c:#include <string.h>
+smf80dmp.c:#include <limits.h>
+smf80dmp.c:#include <stdio.h>
+smf80dmp.c:#include <stdlib.h>
+smf80dmp.c:#include <string.h>
+smf80dmp.c:#include <locale.h>
+smf80dmp.c:#include <stdint.h>
+smf80dmp.c:#include <libgen.h>
+smf80dmp.c:#include "smf80ext.h"     // definizioni di supporto: strutture usate
+smf80dmp.c:#include "smf80sup.h"     // definizioni di supporto: costanti e variabili
+smf80dmp.c:#include "smf80fmt.h"     // definizione aree dei record SMF80
+smf80ext.c:#include <limits.h>
+smf80ext.c:#include <stdio.h>
+smf80ext.c:#include <stdlib.h>
+smf80ext.c:#include <string.h>
+smf80ext.c:#include <locale.h>
+smf80ext.c:#include <stdint.h>
+smf80ext.c:#include <libgen.h>
+smf80ext.c:#include "smf80ext.h"     // definizioni di supporto: strutture usate
+smf80ext.c:#include "smf80sup.h"     // definizioni di supporto: costanti e variabili
+smf80ext.c:#include "smf80fmt.h"     // definizione aree dei record SMF80
+smf80tst.c:#include <ctype.h>
+smf80tst.c:#include <stdio.h>
+smf80tst.c:#include <stdlib.h>
+smf80tst.c:#include <string.h>
+smf80tst.c:#include <stdint.h>
+smf80tst.c:#include <time.h>       /* for clock_t, clock(), gmtime() ... */
+smf80tst.c:#include <libgen.h>
+smf80tst.c:  #include <malloc.h>
+smf80tst.c:#include "smf80tst.h"
+smf80tst.c:#include "smf80sup.h"
+smf81dec.c:#include <stdio.h>
+smf81dec.c:#include <stdlib.h>
+smf81dec.c:#include <string.h>
+smf81dec.c:#include <stdint.h>
+smf81dec.c:#include <time.h>
+smf81dec.c:#include "smf81fmt.h"     // definizione aree dei record SMF81
+strup.c:#include <stdlib.h>
+strup.c:#include <string.h>
+trim.c:#include <stdio.h>
+trim.c:#include <stdlib.h>
+trim.c:#include <string.h>
