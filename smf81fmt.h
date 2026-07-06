@@ -90,6 +90,7 @@ typedef struct {
   uint8_t  SMF81S30_FL;      //  flag bit meaning:
                              //    0  active if set
                              //    1  BKUP if set, PRIM otherwise
+                             //  2-7 reserved
   char     SMF81S30_UN[3];   //  unit name
   char     SMF81S30_VL[6];   //  volume name
   uint8_t  SMF81S30_NM;      //  DS seq number
@@ -99,7 +100,7 @@ typedef struct {
 
 // map out SMF81DTS data section CLASSES
 // smf81dec ---------- Rel 21('15') 2026-06-09 ----------
-//     0 Head ..ÜDATASET .
+//     0 Head ..ï¿½DATASET .
 //            0....+....1....+....2....+....3....+....4....+....5....+....6....+....7....+....
 //          h 10FCCECECE40
 //          l 5AC413125304
@@ -110,12 +111,43 @@ typedef struct {
                              //    0 Stats enabled
                              //    1 Audit enabled
                              //    2 Active
-                             //    3 Grouping ??
+                             //    3 Generic profile processing in effect
+                             //    4 Generic commands processing in effect
+                             //    5 Global access checking active
+                             //    6 RACLIST option in effect
+                             //    7 GENLIST option in effect
   char     SMF81S21_CL[8];   //  class name
   uint8_t  SMF81S21_F2;      //  flag bits meaning:
-                             //    1 Always log
-                             //    5 Profile log
+                             //    0 reserved
+                             //    1 LogOptions(Always) in effect
+                             //    2 LogOptions(Never) in effect
+                             //    3 LogOptions(Successes) in effect
+                             //    4 LogOptions(Failures) in effect
+                             //    5 LogOptions(Default in effect
+                             //  6-7 reserved
 } SMF81S21;
+
+// map out SMF81DTS data section Password Profile and User Profile
+typedef struct {
+  uint8_t  SMF81S32_TP;      //  data type 32
+  uint8_t  SMF81S32_DL;      //  length of data that follow
+  uint8_t  SMF81S32_PWI;     //  Password interval in days
+  uint8_t  SMF81S32_PWH;     //  Password history
+  uint8_t  SMF81S32_URE;     //  User ID revoke interval in days
+  uint8_t  SMF81S32_PWL;     //  Password Warning level (0 -> no warning)
+  char SMF81S32_SYR[10][8];  //  Password syntax rules (10 rules of 8 bytes each)
+  uint8_t  SMF81S32_UIN;     //  User ID inactive interval
+  uint8_t  SMF81S32_IN1;     //  Indicators
+                             //    0 Model(GDG) in effect
+                             //    1 Model(User) in effect
+                             //    2 Model(Group) in effect
+                             //    3 GRPLIST in effect
+                             //  4-7 reserved
+  uint8_t  SMF81S32_IN2;     //  Indicators
+                             //  0-7 reserved
+  uint16_t SMF81S32_IN3;     //  Indicators
+                             //  0-15 reserved
+} SMF81S32;
 
 #pragma pack(pop)
 
