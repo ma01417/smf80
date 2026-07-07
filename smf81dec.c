@@ -68,6 +68,7 @@ char *fmt_bit(char *buf, const uint8_t myByte);
 // funzioni per decodifica della data nei rec SMF
 extern char *format_smftime(char * buffer, uint32_t smftime);
 extern char *format_smfdate(char * buffer, uint32_t smfdate);
+// funzione per creazione stringhe di filler caratteri ripetuti ll
 static char *copies(char *s, char filler, size_t ll);
 
 // contructors per sezioni relocabili
@@ -84,6 +85,7 @@ extern int smf81dec(FILE *fdmp, char *smf_buf, size_t reclen)
   SMF81DTS    *smf81dts;
   SMF81S30    *p30;                 // section 30 DB RACF datas
   SMF81S21    *p21;                 // section 21 CLASSES datas
+  SMF81S32    *p32;                 // section 32 RACF Password & User rules
 
   char         fmt_buf[2][16];
   char         buf[101];
@@ -210,10 +212,10 @@ extern int smf81dec(FILE *fdmp, char *smf_buf, size_t reclen)
   fprintf(fdmp,"   %s Protectall in effect\n",ris);
   if (CHECK_BIT(smf81hdr->SMF81OP4, 2))
     {
-    fprintf(fdmp,"      /ç \n");
-    fprintf(fdmp,"     /  ç\n");
-    fprintf(fdmp,"    / || ç   Protectall in warning mode\n");
-    fprintf(fdmp,"   /  ||  ç  ==========================\n");
+    fprintf(fdmp,"      /ï¿½ \n");
+    fprintf(fdmp,"     /  ï¿½\n");
+    fprintf(fdmp,"    / || ï¿½   Protectall in warning mode\n");
+    fprintf(fdmp,"   /  ||  ï¿½  ==========================\n");
     fprintf(fdmp,"   --------\n");
     }
   strcpy(ris,(CHECK_BIT(smf81hdr->SMF81OP4, 3)?SI:NO));
@@ -405,167 +407,121 @@ extern int smf81dec(FILE *fdmp, char *smf_buf, size_t reclen)
      smf81dts =(SMF81DTS *)((long) smf81dts + (long) smf81dts->SMF81DLN +2); // prossima sezione dati
    }
 
-// stampa in esadecimale delle sezioni rilocabili DTS
+// decodifica delle sezioni rilocabili DTS
   for (int i=0; i<NUMELE(a_dta); ++i) {       // stampa in hex le sezioni DTA
       char head[120];
-      char * s_desc;
       int num;
       int sec_ind = 0;    // per testare prima sezione rilocabile da stampare
       int rdb_ind = 0;    // per testare inizio elenco DS DB RACF
       p_dta_s = (rel_sect *) a_dta[i];        // pointer to struct.
-//    s_desc = findsez(p_dta_s->dtp, root_sez);
-// typedef struct {
-//   uint8_t  SMF81S30_TP;      //  data type 30
-//   uint8_t  SMF81S30_DL;      //  length of data that follow
-//   uint8_t  SMF81S30_FL;      //  flag bit meaning:
-//                                    0  active if set
-//                                    1  BKUP if set, PRIM otherwise
-//   char     SMF81S30_UN[3];   //  unit name
-//   char     SMF81S30_VL[6];   //  volume name
-//   uint8_t  SMF81S30_NM;      //  DS seq number
-//   char     SMF81S30_DS[44];  //  DS name: warning not all bytes allocated
-//                              //    effective length = SMF81S30_DL -11
-// } SMF81S30;
-//
-// ACTIVE USE  NUM VOLUME   DATASET
-// ------ ---  --- ------   -------
-//  YES   PRIM   1 SZOSM1   SYS1.J000.RACF
-//  YES   BACK   1 SZOSM2   SYS1.J000.RACF.BKUP
-// MEMBER OSJC     IS SYSPLEX COMMUNICATIONS ENABLED & IN DATA SHARING MODE.
-//
+
+// estrae dati da sezioni rilocabili
       while ( p_dta_s ) {
-        if (p_dta_s->dtp == 30)
+        switch (p_dta_s->dtp) {
+          case 30:     // section 30 DB RACF datas
           {
-          char  ds_nam[45];
-          p30 = (SMF81S30 *) p_dta_s->rel; // to decode section 30 values
-          if(!rdb_ind++)
-            {
-            fprintf(fdmp,"\n");
-            fprintf(fdmp," SMF81S30 RACF DB informations\n");
-            fprintf(fdmp,"   Active Use  Num Volume Dataset\n");
-            fprintf(fdmp,"   ------ ---  --- ------ -------\n");
-            }
-          memcpy(ds_nam, p30->SMF81S30_DS, p30->SMF81S30_DL - 11);
-          memset(ds_nam + p30->SMF81S30_DL - 11,0,1);
-          fprintf(fdmp,"   % 6s %4s % 3u %.6s %s\n",
+// SMF81S30 RACF DB datas
+            char  ds_nam[45];
+            p30 = (SMF81S30 *) p_dta_s->rel; // to decode section 30 values
+            if(!rdb_ind++)                   // print header only for first section 30
+              {
+              fprintf(fdmp,"\n");
+              fprintf(fdmp," SMF81S30 RACF DB informations\n");
+              fprintf(fdmp,"   Active Use  Num Volume Dataset\n");
+              fprintf(fdmp,"   ------ ---  --- ------ -------\n");
+              }
+            memcpy(ds_nam, p30->SMF81S30_DS, p30->SMF81S30_DL - 11);
+            memset(ds_nam + p30->SMF81S30_DL - 11,0,1);
+            fprintf(fdmp,"   % 6s %4s % 3u %.6s %s\n",
                   CHECK_BIT(p30->SMF81S30_FL, 0)?" Yes  ":" No   ",
                   CHECK_BIT(p30->SMF81S30_FL, 1)?"Back":"Prim",
                   p30->SMF81S30_NM,
                   p30->SMF81S30_VL,
                   ds_nam);
+            break;
           }
-        else if (p_dta_s->dtp == 21)
+          case 21:
           {
+// SMF81S21 CLASSES datas            
           char  lbuf[20];
-// typedef struct {
-//   uint8_t  SMF81S21_TP;      //  data type 30
-//   uint8_t  SMF81S21_DL;      //  length of data that follow
-//   uint8_t  SMF81S21_FL;      //  flag bits meaning:
-//                              //    0 Stats enabled
-//                              //    1 Audit enabled
-//                              //    2 Active
-//                              //    3 Grouping ??
-//   char     SMF81S21_CL[8];   //  class name
-//   uint8_t  SMF81S21_F2;      //  flag bits meaning:
-//                              //    1 Always log
-//                              //    5 Profile log
-// } SMF81S21;
           p21 = (SMF81S21 *) p_dta_s->rel; // to decode section 21 values
-          if(!sec_ind++)
+          if(!sec_ind++)                   // print header only for first section 21
             {
             fprintf(fdmp,"\n");
             fprintf(fdmp," SMF81S21 CLASS informations\n");
-            fprintf(fdmp,"   Name     Active Audit Stats Group LogOpt\n");
-            fprintf(fdmp,"   -------- ------ ----- ----- ----- -------\n");
+            fprintf(fdmp,"                               Generic Generic  Global\n");
+            fprintf(fdmp,"   Name     Active Audit Stats Profile Commands Checking RACLIST GENLIST LogOpt\n");
+            fprintf(fdmp,"   -------- ------ ----- ----- ------- -------- -------- ------- ------- -------\n");
             }
-//          printf("%s dbg - test per LogOpt\n",pgm_name);
+//          decodifica dei flag di log options
             strcpy(lbuf,"Never");
             if ( CHECK_BIT(p21->SMF81S21_F2, 1) )
-             {
               strcpy(lbuf,"Always");
-//            printf("%s dbg - ALWAYS detected\n",pgm_name);
-             }
+            if ( CHECK_BIT(p21->SMF81S21_F2, 2) )
+              strcpy(lbuf,"Never");
+            if ( CHECK_BIT(p21->SMF81S21_F2, 3) )
+              strcpy(lbuf,"Successes");
+            if ( CHECK_BIT(p21->SMF81S21_F2, 4) )
+              strcpy(lbuf,"Failures");
             if ( CHECK_BIT(p21->SMF81S21_F2, 5) )
-             {
-              strcpy(lbuf,"Profile");
-//            printf("%s dbg - PROFILE detected\n",pgm_name);
-             }
-//          printf("%s dbg - PROFILE detected\n",pgm_name);
-            fprintf(fdmp,"   %.8s % 6s % 5s % 5s % 5s % 7s\n",
+              strcpy(lbuf,"Default");
+            fprintf(fdmp,"   %.8s %6s %5s %5s %7s %8s %8s %7s %7s %8s\n",
                   p21->SMF81S21_CL,
-                  CHECK_BIT(p21->SMF81S21_FL, 2)?"  Yes ":"  No  ",
-                  CHECK_BIT(p21->SMF81S21_FL, 1)?" Yes ":" No  ",
-                  CHECK_BIT(p21->SMF81S21_FL, 0)?" Yes ":" No  ",
-                  CHECK_BIT(p21->SMF81S21_FL, 3)?" Yes ":" No  ",
+                  CHECK_BIT(p21->SMF81S21_FL, 2)?"  Yes ":"  No  ",     // active
+                  CHECK_BIT(p21->SMF81S21_FL, 1)?" Yes ":" No  ",       // audit
+                  CHECK_BIT(p21->SMF81S21_FL, 0)?" Yes ":" No  ",       // stats
+                  CHECK_BIT(p21->SMF81S21_FL, 3)?"  Yes  ":"  No   ",   // generic profile
+                  CHECK_BIT(p21->SMF81S21_FL, 4)?"  Yes   ":"  No    ", // generic commands
+                  CHECK_BIT(p21->SMF81S21_FL, 5)?"  Yes   ":"  No    ", // global checking
+                  CHECK_BIT(p21->SMF81S21_FL, 6)?"  Yes  ":"  No   ",   // raclist
+                  CHECK_BIT(p21->SMF81S21_FL, 7)?"  Yes  ":"  No   ",   // genlist
                   lbuf);
-//        num=sprintf(head,"Rel %d('%x') %s", p_dta_s->dtp, p_dta_s->dtp);
-//        hexprt(fdmp, head, (char *) p_dta_s->rel, p_dta_s->dln, pgm_name);
-//        fprintf(fdmp,"\n");
+            break;
           }
-        p_dta_s = (rel_sect *) p_dta_s->next;
+          case 32:
+          {
+// SMF81S32 RACF Password & User rules
+            char  lbuf[40];
+            char  *p_syr;
+            p32 = (SMF81S32 *) p_dta_s->rel; // to decode section 32 values
+            p_syr = (char *) p32->SMF81S32_SYR;
+            fprintf(fdmp,"\n");
+            fprintf(fdmp," %s\n","SMF81S32 RACF Password & User rules");
+            fprintf(fdmp,"   Pwd int Pwd His Att.Rev Pwd Warn Pwd Synt Inact int Model(GDG) Model(User) Model(Group) GRPLIST\n");
+            fprintf(fdmp,"   ------- ------- ------- -------- -------- --------- ---------- ----------- ------------ -------\n");
+            fprintf(fdmp,"   %.7d %.7d %.7d %.8d %.8s %.9d ",p32->SMF81S32_PWI,
+                                                             p32->SMF81S32_PWH,
+                                                             p32->SMF81S32_URE,
+                                                             p32->SMF81S32_PWL,
+                                                             p_syr,
+                                                             p32->SMF81S32_UIN);
+            fprintf(fdmp," %.10s %.11s %.11s %.7s\n",CHECK_BIT(p32->SMF81S32_IN1, 0)?"   Yes":"    No",
+                                                    CHECK_BIT(p32->SMF81S32_IN1, 1)?"    Yes":"    No",
+                                                    CHECK_BIT(p32->SMF81S32_IN1, 2)?"    Yes":"    No",
+                                                    CHECK_BIT(p32->SMF81S32_IN1, 3)?" Yes":"  No");
+            p_syr += 8;
+            while ( p_syr[0] != ' ')         // until first space
+            {
+              fprintf(fdmp,"   %s %.8s\n",
+                      copies(lbuf, ' ',32),
+                      p_syr);
+              p_syr += 8;
+            }
+            break;
+         }
+          default:
+            fprintf(fdmp,"\n");
+            fprintf(fdmp," %s\n","SMF81DTS unknown section");
+            num=sprintf(head,"Rel %d('%x')", p_dta_s->dtp, p_dta_s->dtp);
+            hexprt(fdmp, head, (char *) p_dta_s->rel, p_dta_s->dln, pgm_name);
+            fprintf(fdmp,"\n");
+            break;
       }
+      p_dta_s = (rel_sect *) p_dta_s->next;
+    }
     }
   return 0;
 }
-
-/*
-  Converte orario in centesimi di secondo dalla mezzanotte
-  in stringa leggibile della forma HH:MM:SS.hh
-*/
-//    uso routine di libreria
-// static char *format_smftime(char buffer[24], uint32_t smftime) {
-//   unsigned int seconds;
-//   unsigned int minutes;
-//   unsigned int hours;
-//   /* convert hundreds of seconds into seconds */
-//   seconds = smftime / 100;
-//   /* compute number of hours since midnight */
-//   hours = seconds / 3600;
-//   seconds -= 3600 * hours;
-//   /* compute number of minutes since start of hour */
-//   minutes = seconds / 60;
-//   /* compute number of seconds since start of minute */
-//   seconds -= 60 * minutes;
-//   /* format time string into given buffer */
-//   snprintf(buffer, 16, "%02.2d:%02.2d:%02.2d.%02.2d",
-//     hours, minutes, seconds, smftime % 100);
-//   return buffer;
-// }
-
-/*
-  Converte la data in formato 0x0YYYDDDF in formato standard ISO
-  "YYYY-MM-DD"
-*/
-//    uso routine di libreria
-// static char *format_smfdate(char buffer[16], uint32_t smfdate) {
-//   unsigned int year;
-//   unsigned int month;
-//   unsigned int day;
-//
-//   int month_days[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
-//
-//   /* convert hex year into decimal */
-//   year = 1900 + 100 * ((smfdate >> 24) & 0x0F) +
-//                  10 * ((smfdate >> 20) & 0x0F) +
-//                   1 * ((smfdate >> 16) & 0x0F);
-//
-//   /* convert hex day into decimal */
-//   day = 100 * ((smfdate >> 12) & 0x0F) +
-//          10 * ((smfdate >>  8) & 0x0F) +
-//           1 * ((smfdate >>  4) & 0x0F);
-//
-//   /* convert julian date into sane date */
-//   if ((year % 4 == 0) && ((year % 100 == 0) && (year % 400 == 0)))
-//     month_days[1] += 1;
-//
-//   for (month = 0; (day > month_days[month]) && (month < 12); month++)
-//     day -= month_days[month];
-//
-//   /* format date string into given buffer */
-//   snprintf(buffer, 16, "%02.2d-%02.2d-%02.2d", year, 1 + month, day);
-//
-//   return buffer;
-// }
 
 /* -------------------------------------------------------------------------- */
 /*   copies: crea una stringa di ll caratteri filler                          */
@@ -630,7 +586,6 @@ rel_sect *createDt1(const SMF81DTS *p_dts, rel_sect * p_root, char *pgm_name )
   if ( !p_root )
     return new_dta;
 
-//  printf("% 8s alloca nuovo nodo per %d rec %d\n", "DBG", smf_dta_dtp, t_smfl);
   while (p_dta->next != NULL)
     p_dta = (rel_sect *) p_dta->next;
   p_dta->next = (rel_sect *) new_dta;
