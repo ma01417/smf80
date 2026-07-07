@@ -500,8 +500,10 @@ extern int smf81dec(FILE *fdmp, char *smf_buf, size_t reclen)
                                                     CHECK_BIT(p32->SMF81S32_IN1, 2)?"    Yes":"    No",
                                                     CHECK_BIT(p32->SMF81S32_IN1, 3)?" Yes":"  No");
             p_syr += 8;
-            while ( p_syr[0] != ' ')         // until first space
+            for ( int j=0; j<NUMELE(p32->SMF81S32_SYR)-1; ++j )   // max 9 regole rimanenti
             {
+              if ( p_syr[0] == ' ' )         // fino al primo spazio
+                break;
               fprintf(fdmp,"   %s %.8s\n",
                       copies(lbuf, ' ',32),
                       p_syr);
