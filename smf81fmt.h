@@ -127,6 +127,13 @@ typedef struct {
                              //  6-7 reserved
 } SMF81S21;
 
+// map structure of single password rule
+typedef struct {
+  uint8_t  PWD_MINL;         //  minimum password length
+  uint8_t  PWD_MAXL;         //  maximum password length
+  char     PWD_RULE[8];      //  password syntax rule
+} PWDRULE;
+
 // map out SMF81DTS data section Password Profile and User Profile
 typedef struct {
   uint8_t  SMF81S32_TP;      //  data type 32
@@ -135,7 +142,10 @@ typedef struct {
   uint8_t  SMF81S32_PWH;     //  Password history
   uint8_t  SMF81S32_URE;     //  User ID revoke interval in days
   uint8_t  SMF81S32_PWL;     //  Password Warning level (0 -> no warning)
-  char SMF81S32_SYR[10][8];  //  Password syntax rules (10 rules of 8 bytes each)
+  PWDRULE  SMF81S32_SYR[8];  //  Password syntax rules (8 rules of 10 bytes each)
+                             //    1 byte min ll
+                             //    1 byte max ll
+                             //    8 bytes syntax rule
   uint8_t  SMF81S32_UIN;     //  User ID inactive interval
   uint8_t  SMF81S32_IN1;     //  Indicators
                              //    0 Model(GDG) in effect

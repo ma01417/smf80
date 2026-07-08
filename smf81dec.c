@@ -442,7 +442,7 @@ extern int smf81dec(FILE *fdmp, char *smf_buf, size_t reclen)
           }
           case 21:
           {
-// SMF81S21 CLASSES datas            
+// SMF81S21 CLASSES datas
           char  lbuf[20];
           p21 = (SMF81S21 *) p_dta_s->rel; // to decode section 21 values
           if(!sec_ind++)                   // print header only for first section 21
@@ -482,32 +482,33 @@ extern int smf81dec(FILE *fdmp, char *smf_buf, size_t reclen)
           {
 // SMF81S32 RACF Password & User rules
             char  lbuf[40];
-            char  *p_syr;
-            p32 = (SMF81S32 *) p_dta_s->rel; // to decode section 32 values
-            p_syr = (char *) p32->SMF81S32_SYR;
+            PWDRULE *p_syr;
+            p32   = (SMF81S32 *) p_dta_s->rel; // to decode section 32 values
+            p_syr = (PWDRULE *) p32->SMF81S32_SYR;
             fprintf(fdmp,"\n");
             fprintf(fdmp," %s\n","SMF81S32 RACF Password & User rules");
-            fprintf(fdmp,"   Pwd int Pwd His Att.Rev Pwd Warn Pwd Synt Inact int Model(GDG) Model(User) Model(Group) GRPLIST\n");
-            fprintf(fdmp,"   ------- ------- ------- -------- -------- --------- ---------- ----------- ------------ -------\n");
-            fprintf(fdmp,"   %.7d %.7d %.7d %.8d %.8s %.9d ",p32->SMF81S32_PWI,
-                                                             p32->SMF81S32_PWH,
-                                                             p32->SMF81S32_URE,
-                                                             p32->SMF81S32_PWL,
-                                                             p_syr,
-                                                             p32->SMF81S32_UIN);
-            fprintf(fdmp," %.10s %.11s %.11s %.7s\n",CHECK_BIT(p32->SMF81S32_IN1, 0)?"   Yes":"    No",
-                                                    CHECK_BIT(p32->SMF81S32_IN1, 1)?"    Yes":"    No",
-                                                    CHECK_BIT(p32->SMF81S32_IN1, 2)?"    Yes":"    No",
-                                                    CHECK_BIT(p32->SMF81S32_IN1, 3)?" Yes":"  No");
-            p_syr += 8;
+            fprintf(fdmp,"    Pass.   Pass.  Revoke   Pass.    Pass.   Pass.  Inact.   Model  Model  Model\n");
+            fprintf(fdmp,"    Inter. History Attempt Warning  Syntax  Length Interval  (GDG) (User) (Group) GRPLIST\n");
+            fprintf(fdmp,"   ------- ------- ------- ------- -------- ------ -------- ------ ------ ------- -------\n");
+            fprintf(fdmp,"   %7d %7d %7d %7d %.8s %6d %8d ",p32->SMF81S32_PWI,
+                                                            p32->SMF81S32_PWH,
+                                                            p32->SMF81S32_URE,
+                                                            p32->SMF81S32_PWL,
+                                                            p_syr->PWD_RULE,
+                                                            p_syr->PWD_MINL,
+                                                            p32->SMF81S32_UIN);
+            fprintf(fdmp," % 3s    % 3s    % 3s     %-3s\n",CHECK_BIT(p32->SMF81S32_IN1, 0)?"Yes":"No",
+                                                            CHECK_BIT(p32->SMF81S32_IN1, 1)?"Yes":"No",
+                                                            CHECK_BIT(p32->SMF81S32_IN1, 2)?"Yes":"No",
+                                                            CHECK_BIT(p32->SMF81S32_IN1, 3)?"Yes":"No");
+            p_syr += 1;
             for ( int j=0; j<NUMELE(p32->SMF81S32_SYR)-1; ++j )   // max 9 regole rimanenti
             {
-              if ( p_syr[0] == ' ' )         // fino al primo spazio
-                break;
+              if ( p_syr->PWD_MINL == 0 )  break;  // fino alla prima struttura vuota
               fprintf(fdmp,"   %s %.8s\n",
                       copies(lbuf, ' ',32),
-                      p_syr);
-              p_syr += 8;
+                      p_syr->PWD_RULE);
+              p_syr += 1;
             }
             break;
          }
