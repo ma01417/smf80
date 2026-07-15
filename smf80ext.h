@@ -175,12 +175,12 @@ extern st_sm80_evt    * getEvt(char *filename, char *member);                   
 extern char           * getExt(const char *path_name, char *ext);                                 // get file name and extention
 extern runparm        * getParm(char *filePARM, char *fileCNTL, st_sm80_evt *root_evt) ;          // scan del file parametri con decodifica filtri
 extern void             hexprt(FILE *fdmp, char *head, char *src, int ll, char *pgm_name);        // stampa in esadecimale
-extern char           * ltrim(char *s);                                                           // trim leading blanks
+extern char           * ltrim(char *s, int ll);                                                   // trim leading blanks (ll = lunghezza massima da considerare)
 extern int              makeargv(char *string, char *argv[], int argvsize, int max_argc);         // tokenize a string
 extern FILE           * openf(const char *filename, const char *open_parm, const char *op_desc, const char * pgmname); // open a file
 extern char           * rtrim(char *s);                                                           // trim trailing blanks
 extern void             strup(char *s, char *u);                                                  // translate to upper case a string
-extern char           * trim(char *s);                                                            // trim trailing & leading blanks
+extern char           * trim(char *s, int ll);                                                    // trim trailing & leading blanks (ll = lunghezza massima da considerare)
 extern st_sm80_sez    * getSez(char *filename, char *member);                                     // get linkedlist of relocale sections
 extern int              fltparm(list_parameter *p_par, char *name, uint32_t value);               // check di valori con filtri
 extern char           * format_smftime(char * buffer, uint32_t smftime);                          // format ora in 1/100s rec SMF

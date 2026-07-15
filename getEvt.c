@@ -64,7 +64,7 @@ extern st_sm80_evt *getEvt(char *filename, char *member)
     ac = makeargv(str_par, av, strlen(str_par), n_tevt);
     if ( strncmp(av[0], "*", 1) == 0 ) continue;  // commento iniziale
 
-    trim(av[3]);
+    trim(av[3], strlen(av[3]));
     push_evt(av[0], ++c_evt, av[3]);
 
   } while ( ! feof(fevt ) );
