@@ -44,19 +44,21 @@ AR      := ar
 ARFLAGS := -rcs
 OFLAGS  := -c
 L       := .lst
-MYOUT   := /u/J43124/bin/
+# NOTA: sostituire <UserId> con la propria utenza z/OS
+MYOUT   := /u/<UserId>/bin/
 SDB     := smf81dec
 
+# NOTA: sostituire <MyPrefix> con il prefisso delle proprie librerie PDS/PDSE
 # compila il programma
 smf80ext: $(HEADERS) $(MYOBJ) $(MYLIB:¬"lib":+"$A") $$*.c
 	$(CC) $(CFLAGS) -L. -o $(MYOUT)$@ $@.c -l $(MYLIB) >$*$L
 	echo Compilato il programma $@.c listing in $*$L, modulo in $(MYOUT)$@
-	cp $(MYOUT)$@ "//'ATS.ATSX33.LLIB($@)'"
-	echo copiato il modulo $@ nel PDSE //'ATS.ATSX33.LLIB($@)'
-	cp $@$L "//'ATS.ATSX33.C.DBG($@)'"
-	echo copiato listing $@ in libreria per FA //'ATS.ATSX33.C.DBG($@)'
-	cp $(SDB)$L "//'ATS.ATSX33.C.DBG($(SDB))'"
-	echo copiato listing $(SDB) in libreria per FA //'ATS.ATSX33.C.DBG($(SDB))'
+	cp $(MYOUT)$@ "//'<MyPrefix>.LLIB($@)'"
+	echo copiato il modulo $@ nel PDSE //'<MyPrefix>.LLIB($@)'
+	cp $@$L "//'<MyPrefix>.C.DBG($@)'"
+	echo copiato listing $@ in libreria per FA //'<MyPrefix>.C.DBG($@)'
+	cp $(SDB)$L "//'<MyPrefix>.C.DBG($(SDB))'"
+	echo copiato listing $(SDB) in libreria per FA //'<MyPrefix>.C.DBG($(SDB))'
 
 # gestione della libreria
 myext.a .LIBRARY : $(MYOBJ)

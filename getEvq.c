@@ -45,7 +45,8 @@ extern st_sm80_evq *getEvq(char *filename, char *member, char *d_evt)
   ac = sprintf(f, "%s(%s)", filename, member);
   ac = sprintf(d, "EVQ per %s e descrizioni", d_evt);
 /*
-          Apertura file EVQ per EVENT e descrizioni  //'ATS.ATSX33.CNTL(SM80EVNQ)'
+     NOTA: sostituire <MyPrefix> con il prefisso delle proprie librerie PDS/PDSE
+          Apertura file EVQ per EVENT e descrizioni  //'<MyPrefix>.CNTL(SM80EVNQ)'
      EVENT 0 ricerca evq per evt 'EVQ per EVENT e descrizioni'
 */
   fevq = openf(f, "r", d, "getEvq");
