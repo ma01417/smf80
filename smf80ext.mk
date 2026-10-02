@@ -5,149 +5,106 @@
 # A.Brezzi giugno 2024                                            #
 #                                                                 #
 # --------------------------------------------------------------- #
-MYMEMB  := strup \
-           trim \
-           openf \
-           createStr \
-           getExt \
-           hexprt \
-           fmtDtTm \
-           getEvt \
-           getEvq \
-           getCls \
-           getSez \
-           makeargv \
-           crfilter \
-           fltparm \
-           getlrow \
-           findevt \
-           crparm \
-           gettrow \
-           chkparm \
-           getParm \
-           creDTA_2 \
-           smf81dec
+# Elenco sorgenti C nativo
+SRCS    = strup.c \
+          trim.c \
+          openf.c \
+          createStr.c \
+          getExt.c \
+          hexprt.c \
+          fmtDtTm.c \
+          getEvt.c \
+          getEvq.c \
+          get_CDT.c \
+          getSez.c \
+          makeargv.c \
+          crfilter.c \
+          fltparm.c \
+          getlrow.c \
+          findevt.c \
+          crparm.c \
+          gettrow.c \
+          chkparm.c \
+          getParm.c \
+          creDTA_2.c \
+          irrauth.c \
+          irrcdt.c \
+          smf81dec.c
+# dipendenze per i sorgenti C
+DEPS    = $(SRCS:.c=.u)
 #
-HEADERS := smf80fmt.h \
-           smf80sup.h \
-           smf80ext.h \
-           smf81fmt.h
+METAL   = racfree_metal.c \
+          racmode_metal.c \
+          racstat_metal.c \
+          racauth_metal.c
+# dipendenze per i sorgenti METAL normali
+MDEP    = $(METAL:.c=.u)
+# oggetti da compilazione dei sorgenti C
+OBJS    = $(SRCS:.c=.o)
+# oggetto del programma principale (compilato a parte, poi linkato)
+MAINO   = $(TARGET).o
+# dipendenze del programma principale
+MAINU   = $(TARGET).u
 #
-DBG     := -g
-OPT     := -O
-MYFUNC  := $(MYMEMB:+".c")
-MYOBJ   := $(MYMEMB:+"$O")
-MYLIB   := myext
-CC      := xlc
-CFLAGS  := -Wc,list $(OPT) $(DBG)
-AR      := ar
-ARFLAGS := -rcs
-OFLAGS  := -c
-L       := .lst
+DBG     = -g
+OPT     = -O
+MAK     = -qmakedep=gcc
+MOBJS   = $(METAL:.c=.o)
+# sorgenti assembler generati dal compilatore METAL
+MSRCS   = $(METAL:.c=.s)
+DLST    = ./lst
+#
+TARGET  = smf80ext
+CC      = xlc
+CFLAGS  = -Wc,list -qsource $(OPT) $(MAK) $(DBG)
+MFLAGS  = -S -qmetal -qsource -qlanglvl=extc99 $(MAK)
+MINCL   = -Wc,NOSEARCH -I /usr/include/metal/
+MPROLOG = metalc_prolog.mac
+OFLAGS  = -c
+L       = .lst
 # NOTA: sostituire <UserId> con la propria utenza z/OS
-MYOUT   := /u/<UserId>/bin/
-SDB     := smf81dec
-
 # NOTA: sostituire <MyPrefix> con il prefisso delle proprie librerie PDS/PDSE
+MYOUT   = /u/<UserId>/bin/
+SDB     = smf81dec
+
 # compila il programma
-smf80ext: $(HEADERS) $(MYOBJ) $(MYLIB:¬"lib":+"$A") $$*.c
-	$(CC) $(CFLAGS) -L. -o $(MYOUT)$@ $@.c -l $(MYLIB) >$*$L
-	echo Compilato il programma $@.c listing in $*$L, modulo in $(MYOUT)$@
+# smf80ext: $(HEADERS) $(MYOBJ) $(MOBJS) $(MYLIB:¬"lib":+"$A") $(IRRSEQ:¬"lib":+"$A") $$*.c
+$(TARGET): $(MAINO) $(OBJS) $(MOBJS)
+#	$(CC) $(CFLAGS) -L. -o $(MYOUT)$@ $@.c -l $(MYLIB) -l $(IRRSEQ) >$*$L
+	$(CC) $(DBG) -o $(MYOUT)$@ $(MAINO) $(OBJS) $(MOBJS) >$(DLST)/$@.lnk
+	echo Linkato il programma $@ messaggi binder in $(DLST)/$@.lnk  modulo in $(MYOUT)$@
 	cp $(MYOUT)$@ "//'<MyPrefix>.LLIB($@)'"
 	echo copiato il modulo $@ nel PDSE //'<MyPrefix>.LLIB($@)'
 	cp $@$L "//'<MyPrefix>.C.DBG($@)'"
 	echo copiato listing $@ in libreria per FA //'<MyPrefix>.C.DBG($@)'
 	cp $(SDB)$L "//'<MyPrefix>.C.DBG($(SDB))'"
 	echo copiato listing $(SDB) in libreria per FA //'<MyPrefix>.C.DBG($(SDB))'
-
-# gestione della libreria
-myext.a .LIBRARY : $(MYOBJ)
-	$(AR) $(ARFLAGS) lib$(MYLIB:+"$A") $*$O
-	$(AR) -tv lib$(MYLIB$A)
-
-# compila le funzioni in base alle dipendenze
-# chkparm.o : findevt.o getEvq.o getEvt.o \
-#             $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
 #
-# createStr.o : $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
+$(MSRCS): $$*.c
+	$(CC) $(MFLAGS) $(MINCL) -Wc,LONGNAME -o $*.s $*.c  >$(DLST)/$*$L
+	echo Compilata la funzione METAL $*.c listing in $(DLST)/$*$L
 #
-# crfilter.o : $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
+$(MOBJS): $$*.s $(MPROLOG)
+	cat $(MPROLOG) $*.s > $*.full.s
+	as -mgoff -o $*.o $*.full.s
+# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$(DLST)/$*$L
 # 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
+	rm $*.full.s
+	echo Assemblata la funzione METAL $* oggetto in $*.o
 #
-# crparm.o : $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
+$(OBJS) $(MAINO): $$*.c
+	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$(DLST)/$*$L
+# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$(DLST)/$*$L
 # 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
+	echo Compilata la funzione $*.c listing in $(DLST)/$*$L
 #
-# findevt.o : strevt.h $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
-#
-# getCls.o : makeargv.o openf.o $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
-#
-# getEvq.o : openf.o makeargv.o trim.o $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
-#
-# getEvt.o : openf.o makeargv.o trim.o $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
-#
-# getlrow.o : $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
-#
-# getParm.o : chkparm.o getCls.o getEvt.o getlrow.o gettrow.o openf.o \
-#             trim.o $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
-#
-# gettrow.o : chkparm.o crfilter.o crparm.o makeargv.o strup.o \
-#             $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
-#
-# makeargv.o : $(HEADERS) $$*.c
-# 	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-# 	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-# 	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-# 	echo Compilata la funzione $*.c listing in $*$L
-# ricompila se modificata funzione utilizzata
-$(MYOBJ):: $(MYFUNC)
-	$(CC) $(CFLAGS) $(OFLAGS) $*.c        >$*$L
-	$(AR) $(ARFLAGS) $(MYLIB:¬"lib":+"$A") $*$O  >>$*$L
-	$(AR) -tv $(MYLIB:¬"lib":+"$A")      >>$*$L
-	echo Compilata la funzione $*.c listing in $*$L
-
 # pulizia degli oggetti per la ricompilazione totale
-CLEANUP:
-	$(RM) $(MYOBJ)
-
+.PHONY : clean
+clean:
+	$(RM) $(OBJS) $(MAINO)
+	$(RM) $(MOBJS)
+	$(RM) $(MSRCS)
+	$(RM) $(DEPS) $(MDEP) $(MAINU)
+#
+# dipendenze dagli header generate da -qmakedep (ignorate se assenti)
+.INCLUDE .IGNORE : $(DEPS) $(MDEP) $(MAINU)

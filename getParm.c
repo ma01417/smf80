@@ -46,6 +46,7 @@
 
 st_sm80_evq *root_evq;
 st_sm80_cls *root_cls;
+st_sm80_cls *root_CDT;
 
 // flag per caratteristiche da filtrare
 // SMF80SEC_FL  smf80sec_fl;
@@ -109,7 +110,10 @@ extern runparm *getParm(char *filePARM, char *fileCNTL, st_sm80_evt *root_evt) {
     }
 
 // caricamento classi RACF -- qui eventuali altri caricamenti
-  root_cls = getCls(fileCNTL, "SM80CLS");   // pre-caricate da REXX eseguita in JCL
+// root_CDT = getCls(fileCNTL, "SM80CLS");   // pre-caricate da REXX eseguita in JCL
+
+// caricamento classi RACF -- direttamente via RACROUTE TYPE=STAT
+  root_cls = get_CDT();                     // ottenuta in diretta
 
 /* -------------------------------------------------------------------------------- */
 /*                                                                                  */

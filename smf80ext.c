@@ -75,6 +75,8 @@
  #define _AMB_ ZOS
 #endif
 
+#define XLC_METAL_COMPILE
+
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>

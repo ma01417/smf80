@@ -501,14 +501,14 @@ extern int smf81dec(FILE *fdmp, char *smf_buf, size_t reclen)
                                                             CHECK_BIT(p32->SMF81S32_IN1, 1)?"Yes":"No",
                                                             CHECK_BIT(p32->SMF81S32_IN1, 2)?"Yes":"No",
                                                             CHECK_BIT(p32->SMF81S32_IN1, 3)?"Yes":"No");
-            p_syr += 1;
+            p_syr += sizeof(PWDRULE);
             for ( int j=0; j<NUMELE(p32->SMF81S32_SYR)-1; ++j )   // max 9 regole rimanenti
             {
               if ( p_syr->PWD_MINL == 0 )  break;  // fino alla prima struttura vuota
               fprintf(fdmp,"   %s %.8s\n",
                       copies(lbuf, ' ',32),
                       p_syr->PWD_RULE);
-              p_syr += 1;
+              p_syr += sizeof(PWDRULE);
             }
             break;
          }

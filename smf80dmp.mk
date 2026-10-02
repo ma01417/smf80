@@ -42,9 +42,9 @@ ARFLAGS := -rcs
 OFLAGS  := -c
 L       := .lst
 # NOTA: sostituire <UserId> con la propria utenza z/OS
+# NOTA: sostituire <MyPrefix> con il prefisso delle proprie librerie PDS/PDSE
 MYOUT   := /u/<UserId>/bin/
 
-# NOTA: sostituire <MyPrefix> con il prefisso delle proprie librerie PDS/PDSE
 # compila il programma
 smf80dmp: $(HEADERS) $(MYOBJ) $(MYLIB:¬"lib":+"$A") $$*.c
 	$(CC) $(CFLAGS) -L. -o $(MYOUT)$@ $@.c -l $(MYLIB) >$*$L

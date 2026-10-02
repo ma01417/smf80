@@ -18,15 +18,15 @@
 #include <ctype.h>
 
 extern char *rtrim(char *s);
-extern char *ltrim(char *s, int ll);
+extern char *ltrim(char *s,int ll);
 
 // trim a string both sides
-extern char *trim(char *s, int ll) {
+extern char *trim(char *s,int ll) {
 
     // elimina spazi finali
     s = rtrim(s);
     // elimina spazi iniziali
-    s = ltrim(s, ll);
+    s = ltrim(s,ll);
 
     return s;
 }
@@ -52,59 +52,36 @@ extern char *rtrim(char *s) {
 
     return s;
 }
-/* ---------------------------------------------------------------- */
-/* ltrim    funzione di trim degli spazi iniziale della stringa     */
-/*          fornita                                                 */
-/* ---------------------------------------------------------------- */
-
 // trim leading spaces
-// extern char *ltrim(char *s) {
-//     char *ptr;
-//     int str_l;
-
-//     // se stringa nulla o vuota non fa nulla
-//     if (!s)
-//       return NULL;   // handle NULL string
-//     if (!*s)
-//       return s;      // handle empty string
-
-//     str_l = strlen(s) - 1;
-
-//     for ( (ptr = s); (ptr <= s + str_l) && (isspace((unsigned char)*ptr)); ++ptr);
-//     s = ptr;
-//     return s;
-// }
 /*
- * analizza_stringa
- * -----------------
  * Rimuove gli spazi iniziali (solo quelli, non quelli interni o finali)
  * da una stringa, spostando il resto del contenuto all'inizio del buffer
  * (modifica il buffer "in place" e ne restituisce il puntatore).
  *
  * Parametri:
- *   s         - puntatore al buffer da elaborare. Pu√≤ essere NULL.
- *   ll        - numero massimo di caratteri da considerare a partire
+ *   str       - puntatore al buffer da elaborare. PuÚ essere NULL.
+ *   lunghezza - numero massimo di caratteri da considerare a partire
  *               dall'inizio del buffer. Serve a delimitare l'elaborazione
  *               anche quando il buffer non contiene un terminatore '\0'
  *               entro quel numero di caratteri (es. buffer non
  *               null-terminated, oppure per troncare volutamente una
- *               stringa pi√π lunga).
+ *               stringa pi˘ lunga).
  *
  * Valore restituito:
- *   Il puntatore s stesso (buffer modificato), oppure NULL se s
+ *   Il puntatore str stesso (buffer modificato), oppure NULL se str
  *   era NULL.
  *
  * Nota sulla sicurezza del terminatore finale:
- *   Il ciclo di copia si ferma o perch√© ha incontrato un '\0' entro
- *   "ll" caratteri (caso normale), oppure perch√© ha raggiunto
- *   il limite "ll" senza trovare un '\0' (il buffer non √®
- *   terminato, o lo √® oltre il limite indicato).
+ *   Il ciclo di copia si ferma o perchÈ ha incontrato un '\0' entro
+ *   "lunghezza" caratteri (caso normale), oppure perchÈ ha raggiunto
+ *   il limite "lunghezza" senza trovare un '\0' (il buffer non Ë
+ *   terminato, o lo Ë oltre il limite indicato).
  *   In quest'ultimo caso scrivere un '\0' in coda sarebbe potenzialmente
  *   fuori dai limiti del buffer (se non sono stati rimossi spazi
- *   iniziali non c'√® nessuno spazio "liberato" dallo shift a sinistra).
+ *   iniziali non c'Ë nessuno spazio "liberato" dallo shift a sinistra).
  *   Per questo il terminatore viene scritto solo se:
- *     - il ciclo si √® fermato per aver trovato un '\0' reale (sempre
- *       sicuro, la posizione di scrittura √® <= alla posizione del '\0'
+ *     - il ciclo si Ë fermato per aver trovato un '\0' reale (sempre
+ *       sicuro, la posizione di scrittura Ë <= alla posizione del '\0'
  *       originale), oppure
  *     - sono stati rimossi spazi iniziali (inizio > 0): lo shift a
  *       sinistra libera esattamente "inizio" byte in coda al contenuto
@@ -114,27 +91,26 @@ extern char *rtrim(char *s) {
  *   stati rimossi spazi iniziali, il terminatore NON viene scritto per
  *   evitare una scrittura fuori dai limiti del buffer.
  */
-extern char *ltrim(char *s, int ll) {
+extern char *ltrim(char *s,int ll) {
     if (s == NULL) {
         return NULL;
     }
 
     /* Fase 1: individua la posizione del primo carattere non-spazio,
-       senza superare "ll". "inizio" sar√† il numero di spazi
+       senza superare "lunghezza". "inizio" sar‡ il numero di spazi
        iniziali da saltare. */
     int inizio = 0;
     while (inizio < ll && s[inizio] == ' ') {
         inizio++;
     }
-
     /* Fase 2: copia (shift a sinistra) tutto il contenuto a partire da
        "inizio" verso la posizione 0 del buffer, fermandosi al primo
-       '\0' incontrato oppure al raggiungimento di "ll".
+       '\0' incontrato oppure al raggiungimento di "lunghezza".
        "scrittura" conta quanti caratteri sono stati effettivamente
        copiati (= lunghezza della stringa risultante, terminatore
        escluso). "lettura" tiene traccia della posizione di lettura nel
-       buffer originale, e il suo valore finale serve a capire perch√©
-       il ciclo si √® fermato (vedi Fase 3). */
+       buffer originale, e il suo valore finale serve a capire perchÈ
+       il ciclo si Ë fermato (vedi Fase 3). */
     int scrittura = 0;
     int lettura = inizio;
     while (lettura < ll && s[lettura] != '\0') {
@@ -144,9 +120,9 @@ extern char *ltrim(char *s, int ll) {
     }
 
     /* Fase 3: decide se e dove scrivere il terminatore '\0' finale.
-       fine_per_lunghezza √® vero se il ciclo si √® fermato perch√© ha
-       raggiunto "ll" (non perch√© ha trovato un '\0' reale).
-       spazi_iniziali_rimossi √® vero se sono stati saltati spazi
+       fine_per_lunghezza Ë vero se il ciclo si Ë fermato perchÈ ha
+       raggiunto "lunghezza" (non perchÈ ha trovato un '\0' reale).
+       spazi_iniziali_rimossi Ë vero se sono stati saltati spazi
        iniziali (inizio > 0), il che garantisce che ci sia spazio
        libero nel buffer per il terminatore senza sforare i limiti. */
     int fine_per_lunghezza = (lettura == ll);
@@ -158,3 +134,4 @@ extern char *ltrim(char *s, int ll) {
 
     return s;
 }
+

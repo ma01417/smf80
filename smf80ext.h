@@ -169,18 +169,19 @@ extern st_sm80_evt    * findevt(const char *name, st_sm80_evt *root_evt);       
 extern list_parameter * findparm(char *name, uint8_t num, list_parameter *root_parameter);        // restituisce putatore nodo par. per nome o valore
 extern char           * getlrow( char * buff, FILE * parm );                                      // lettura di una riga logica di parametri
 extern int              gettrow(char *buff, runparm *p_param);                                    // tokenizza la riga logica
-extern st_sm80_cls    * getCls(char *filename, char *member);                                     // get linkedlist of RACF Classes
+// extern st_sm80_cls    * getCls(char *filename, char *member);                                  // get linkedlist of RACF Classes
+extern st_sm80_cls    * get_CDT( void );                                                          // get linkedlist of RACF Classes
 extern st_sm80_evq    * getEvq(char *filename, char *member, char *d_evt);                        // get linkedlist of event qual for an event
 extern st_sm80_evt    * getEvt(char *filename, char *member);                                     // get linkedlist of events
 extern char           * getExt(const char *path_name, char *ext);                                 // get file name and extention
 extern runparm        * getParm(char *filePARM, char *fileCNTL, st_sm80_evt *root_evt) ;          // scan del file parametri con decodifica filtri
 extern void             hexprt(FILE *fdmp, char *head, char *src, int ll, char *pgm_name);        // stampa in esadecimale
-extern char           * ltrim(char *s, int ll);                                                   // trim leading blanks (ll = lunghezza massima da considerare)
+extern char           * ltrim(char *s);                                                           // trim leading blanks
 extern int              makeargv(char *string, char *argv[], int argvsize, int max_argc);         // tokenize a string
 extern FILE           * openf(const char *filename, const char *open_parm, const char *op_desc, const char * pgmname); // open a file
 extern char           * rtrim(char *s);                                                           // trim trailing blanks
 extern void             strup(char *s, char *u);                                                  // translate to upper case a string
-extern char           * trim(char *s, int ll);                                                    // trim trailing & leading blanks (ll = lunghezza massima da considerare)
+extern char           * trim(char *s);                                                            // trim trailing & leading blanks
 extern st_sm80_sez    * getSez(char *filename, char *member);                                     // get linkedlist of relocale sections
 extern int              fltparm(list_parameter *p_par, char *name, uint32_t value);               // check di valori con filtri
 extern char           * format_smftime(char * buffer, uint32_t smftime);                          // format ora in 1/100s rec SMF

@@ -1,0 +1,226 @@
+**********************************************************************
+* metalc_prolog.mac - custom prolog/epilog for Metal C helper        *
+* functions (racfree_metal.c, racmode_metal.c) called directly from  *
+* hosted-C/LE code (racseq.c) via #pragma linkage(fn, OS).           *
+*                                                                    *
+* WHY THIS EXISTS (root cause of the U4094-18 abend, 2026-07-29):    *
+* Metal C's DEFAULT prolog for any non-"main" function picks up its  *
+* own DSA address from the "next save area" (NAB) field at offset+8  *
+* of the CALLING function's save area - see z/OS Metal C Programming *
+* Guide and Reference, "Compiler-generated default prolog and epilog *
+* code": "For functions other than main, the prolog code simply     *
+* picks up its DSA pointer (the NAB pointer) from the Address of     *
+* next save area field in the calling function's save area."        *
+* Hosted C (racseq.c, plain xlc) never populates that field when it  *
+* makes an OS-linkage call - it only builds the R1 parameter list.   *
+* So the default Metal C prolog ends up loading R13 from garbage,    *
+* and every subsequent store relative to R13 writes to a bogus       *
+* address ("writing beyond storage" - exactly what abend reason     *
+* code X'18' describes). This was confirmed by bisection: even an    *
+* empty no-op Metal C function crashed the same way, proving the     *
+* fault is in the prolog/epilog mechanics, not in any function body. *
+*                                                                    *
+* THE FIX (per the same manual, "Supplying your own prolog and       *
+* epilog code"): supply custom prolog/epilog that independently      *
+* obtains its own DSA via STORAGE OBTAIN/RELEASE - exactly like the  *
+* compiler's own default prolog already does for "main" (the one     *
+* function that likewise cannot trust an incoming NAB, since it has  *
+* no real caller-supplied chain either). MYPROLOG/MYEPILOG below are *
+* IBM's own sample macros (SCCNSAM(MYPROLOG)/SCCNSAM(MYEPILOG) in    *
+* the z/OS Metal C Programming Guide and Reference), reproduced      *
+* verbatim - INCLUDING the "COPY CCNZGBL" line inside each macro,    *
+* replaced here with the CCNZGBL GBL declarations inlined directly,  *
+* to avoid depending on an external SYSLIB/SCCNSAM search.           *
+*                                                                    *
+* IMPORTANT (found 2026-07-29, first attempt at this file got it     *
+* wrong): the CCN_xxx GBL declarations must NOT be placed once at    *
+* file/open-code scope. The Metal C compiler's OWN generated .s      *
+* output already declares these same globals in open code (it has   *
+* to, in order to SET them before invoking MYPROLOG/MYEPILOG) - a    *
+* second open-code GBLA/GBLB/GBLC for the same names is rejected by  *
+* HLASM as ASMA004E "Duplicate SET symbol declaration", and worse,   *
+* placing our declarations in a separate block meant the compiler's  *
+* own MYPROLOG/MYEPILOG invocations (which happen earlier in its own *
+* generated code) ran before that block was even reached, producing  *
+* ASMA003E "Undeclared variable symbol". IBM's real sample avoids    *
+* this entirely by declaring the globals INSIDE each macro body      *
+* (matching HLASM's actual scoping rule: a GBLx statement must       *
+* appear inside a macro definition for that macro to see the name as *
+* global, regardless of any open-code declaration elsewhere) - so    *
+* that is what this file does too, exactly like the original.       *
+*                                                                    *
+* Usage: apply via                                                   *
+*   #pragma prolog(function_name, "MYPROLOG")                        *
+*   #pragma epilog(function_name, "MYEPILOG")                        *
+* on every function in this compilation unit that is called          *
+* directly from hosted-C/LE code under OS linkage. This file is      *
+* prepended (by build.sh) to the Metal C compiler's generated .s     *
+* output before assembly, so these macros are defined before first   *
+* use regardless of where in the function list the pragma appears.  *
+**********************************************************************
+         MACRO
+&NAME    MYPROLOG
+         GBLA  &CCN_DSASZ    DSA size of the function
+         GBLA  &CCN_SASZ     Save area size of this function
+         GBLA  &CCN_ARGS     Number of fixed parameters
+         GBLA  &CCN_RLOW     1st GPR on STM/STMG in prolog
+         GBLA  &CCN_RHIGH    2nd GPR on STM/STMG in prolog
+         GBLB  &CCN_MAIN     True if function is main
+         GBLB  &CCN_LP64     True if compiled with LP64
+         GBLB  &CCN_NAB      True if NAB needed
+         GBLB  &CCN_ALTGPR(16) Altered GPRs by the function
+         GBLB  &CCN_SASIG    True to gen savearea signature
+         GBLC  &CCN_PRCN     Entry symbol of the function
+         GBLC  &CCN_CSECT    CSECT name of the file
+         GBLC  &CCN_LITN     Symbol name for LTORG
+         GBLC  &CCN_BEGIN    Symbol name for function body
+         GBLC  &CCN_ARCHLVL  n in ARCH(n) option
+         GBLC  &CCN_ASCM     A=AR mode P=Primary mode
+         GBLC  &CCN_IASM_MACRO MACRO name for all insert_asm
+         GBLB  &CCN_IASM_FRONT True if insert_asm at front
+         GBLC  &CCN_NAB_OFFSET Offset to NAB pointer in DSA
+         GBLB  &CCN_NAB_STORED True if NAB pointer stored
+         GBLC  &CCN_PRCN_LONG Full func name up to 1024 chars
+         GBLB  &CCN_STATIC   True if function is static
+         GBLB  &CCN_RENT     True if compiled with RENT
+         GBLC  &CCN_WSA_INIT WSA initialization function name
+         GBLC  &CCN_WSA_TERM WSA termination function name
+         GBLB  &CCN_APARSE   True to parse OS PARM
+         GBLC  &CCN_DSAUSER  Offset to user field in DSA
+         LARL  15,&CCN_LITN
+         USING &CCN_LITN,15
+         GBLA  &MY_DSASZ
+&MY_DSASZ SETA 0
+         AIF   (&CCN_LP64).LP64_1
+         STM   14,12,12(13)
+         AGO   .NEXT_1
+.LP64_1  ANOP
+         STMG  14,12,8(13)
+.NEXT_1  ANOP
+         AIF   (NOT &CCN_RENT).SKIP_R1
+         AIF   (&CCN_LP64).LP64_11
+         LR    2,0
+         AGO   .SKIP_R1
+.LP64_11 ANOP
+         LGR   2,0
+.SKIP_R1 ANOP
+         AIF   (&CCN_DSASZ LE 0).DROP
+&MY_DSASZ SETA &CCN_DSASZ
+         AIF   (&CCN_DSASZ GT 32767).USELIT
+         AIF   (&CCN_LP64).LP64_2
+         LHI   0,&CCN_DSASZ
+         AGO   .NEXT_2
+.LP64_2  ANOP
+         LGHI  0,&CCN_DSASZ
+         AGO   .NEXT_2
+.USELIT  ANOP
+         AIF   (&CCN_LP64).LP64_3
+         L     0,=F'&CCN_DSASZ'
+         AGO   .NEXT_2
+.LP64_3  ANOP
+         LGF   0,=F'&CCN_DSASZ'
+.NEXT_2  AIF   (NOT &CCN_NAB).GETDSA
+&MY_DSASZ SETA &MY_DSASZ+1048576
+         LA    1,1
+         SLL   1,20
+         AIF   (&CCN_LP64).LP64_4
+         AR    0,1
+         AGO   .GETDSA
+.LP64_4  ANOP
+         AGR   0,1
+.GETDSA  ANOP
+         STORAGE OBTAIN,LENGTH=(0),BNDRY=PAGE
+         AIF   (&CCN_LP64).LP64_5
+         LR    15,1
+         ST    15,8(,13)
+         L     1,24(,13)
+         ST    13,4(,15)
+         LR    13,15
+         AGO   .CHECK_R
+.LP64_5  ANOP
+         LGR   15,1
+         STG   15,136(,13)
+         LG    1,32(,13)
+         STG   13,128(,15)
+         LGR   13,15
+.CHECK_R ANOP
+         AIF   (NOT &CCN_RENT).DROP
+         AIF   (&CCN_LP64).LP64_12
+         LR    0,2
+         AGO   .DROP
+.LP64_12 ANOP
+         LGR   0,2
+.DROP    ANOP
+         DROP  15
+         MEND
+*
+         MACRO
+&NAME    MYEPILOG
+         GBLA  &CCN_DSASZ    DSA size of the function
+         GBLA  &CCN_SASZ     Save area size of this function
+         GBLA  &CCN_ARGS     Number of fixed parameters
+         GBLA  &CCN_RLOW     1st GPR on STM/STMG in prolog
+         GBLA  &CCN_RHIGH    2nd GPR on STM/STMG in prolog
+         GBLB  &CCN_MAIN     True if function is main
+         GBLB  &CCN_LP64     True if compiled with LP64
+         GBLB  &CCN_NAB      True if NAB needed
+         GBLB  &CCN_ALTGPR(16) Altered GPRs by the function
+         GBLB  &CCN_SASIG    True to gen savearea signature
+         GBLC  &CCN_PRCN     Entry symbol of the function
+         GBLC  &CCN_CSECT    CSECT name of the file
+         GBLC  &CCN_LITN     Symbol name for LTORG
+         GBLC  &CCN_BEGIN    Symbol name for function body
+         GBLC  &CCN_ARCHLVL  n in ARCH(n) option
+         GBLC  &CCN_ASCM     A=AR mode P=Primary mode
+         GBLC  &CCN_IASM_MACRO MACRO name for all insert_asm
+         GBLB  &CCN_IASM_FRONT True if insert_asm at front
+         GBLC  &CCN_NAB_OFFSET Offset to NAB pointer in DSA
+         GBLB  &CCN_NAB_STORED True if NAB pointer stored
+         GBLC  &CCN_PRCN_LONG Full func name up to 1024 chars
+         GBLB  &CCN_STATIC   True if function is static
+         GBLB  &CCN_RENT     True if compiled with RENT
+         GBLC  &CCN_WSA_INIT WSA initialization function name
+         GBLC  &CCN_WSA_TERM WSA termination function name
+         GBLB  &CCN_APARSE   True to parse OS PARM
+         GBLC  &CCN_DSAUSER  Offset to user field in DSA
+         GBLA  &MY_DSASZ
+         AIF   (&MY_DSASZ EQ 0).NODSA
+         AIF   (&CCN_LP64).LP64_1
+         LR    1,13
+         AGO   .NEXT_1
+.LP64_1  ANOP
+         LGR   1,13
+.NEXT_1  ANOP
+         AIF   (&CCN_LP64).LP64_2
+         L     13,4(,13)
+         AGO   .NEXT_2
+.LP64_2  ANOP
+         LG    13,128(,13)
+.NEXT_2  ANOP
+         AIF   (&CCN_LP64).LP64_3
+         ST    15,16(,13)
+         AGO   .NEXT_3
+.LP64_3  ANOP
+         STG   15,16(,13)
+.NEXT_3  ANOP
+         LARL  15,&CCN_LITN
+         USING &CCN_LITN,15
+         STORAGE RELEASE,LENGTH=&MY_DSASZ,ADDR=(1)
+         DROP  15
+         AIF   (&CCN_LP64).LP64_4
+         L     15,16(,13)
+         AGO   .NEXT_4
+.LP64_4  ANOP
+         LG    15,16(,13)
+.NEXT_4  ANOP
+.NODSA   ANOP
+         AIF   (&CCN_LP64).LP64_5
+         L     14,12(,13)
+         LM    1,12,24(13)
+         AGO   .NEXT_5
+.LP64_5  ANOP
+         LG    14,8(,13)
+         LMG   1,12,32(13)
+.NEXT_5  ANOP
+         BR    14
+         MEND

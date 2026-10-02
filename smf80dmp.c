@@ -158,6 +158,8 @@ extern st_sm80_evt *findevtn(uint8_t num_evt, st_sm80_evt *root_evt);
 int check_parm(char *name, uint8_t value, list_filter *p, int op, int fil_type);
 // routine che restituisce max e min per orari forniti in array con date e time;
 void check_clock(uint32_t smfdt, uint32_t smftm, uint32_t mind[2], uint32_t maxd[2]);
+// routine per dbg di comando TSO
+void listalc( void );
 
 /* files handler  */
 FILE *fsmf;    // FILE con SMF input
@@ -200,8 +202,11 @@ int main( int argc, char * argv[] ) {
  }
  memset(vid_name, ' ', strlen(pgm_name));
 
+ /* test di esecuzione comando LISTALC */
+ //  listalc();
+
  /* imposta locale su Italia */
-   setlocale(LC_ALL, "It_IT.IBM-1144");
+ setlocale(LC_ALL, "It_IT.IBM-1144");
 
  /* apertura file parametri elaborazione           */
  get_cl_time(l_t);
@@ -606,6 +611,31 @@ int str_split(char *sp, char *token, char sep) {
  p++;                    // bypassa il punto trovato
  return 1;               // trovata istanza, ce ne sono altre
  }
+
+/* -------------------------------------------------------------------------- */
+/*   Description: ricerca e ritorna puntatore alla descrizione della          */
+/*                sezione richiesta                                           */
+/* -------------------------------------------------------------------------- */
+void listalc( void ) {
+  FILE *flis;
+  char *buffer = malloc(100);
+  char fname[] = "u/<UserId>/result.log";
+
+  int rc = system("listalc status");
+  if ( (flis = fopen(fname, "rb" )) == NULL) {
+    printf("E: errore apertura file %s\n", fname);
+    return;
+  }
+/* carico dell'output del comando         */
+ printf(" Rec   LL -- stringa\n");
+ for ( int i = 0; ; i++) {
+   num = fread( buffer, 1, sizeof buffer, flis );
+   if ( feof(flis) ) break;    /* finito input */
+   printf("% 4d % 4d -> %s\n", i, num, buffer);
+ }
+
+  return;
+}
 
 /* -------------------------------------------------------------------------- */
 /*   Description: ricerca e ritorna puntatore alla descrizione della          */
