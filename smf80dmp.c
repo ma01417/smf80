@@ -461,7 +461,7 @@ int main( int argc, char * argv[] ) {
    if ( p_par ) {
      smf80_dta *p_dt33;
      smf80dts = a_dta[l_sez[PROF]]->rel;
-     p_dt33   = smf80dts->SMF80DTA;
+     p_dt33   = (smf80_dta *)smf80dts->SMF80DTA;
      ll_cmp = MIN(smf80dts->SMF80DLN - 1, sizeof t_str);  // elinina byte flag tipo prof
      memset(t_str, 0, sizeof t_str);
      memcpy(t_str, p_dt33->s033_res_prof, ll_cmp);
