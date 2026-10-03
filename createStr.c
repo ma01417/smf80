@@ -14,6 +14,9 @@
  #define _AMB_ ZOS
 #endif
 
+/* deve precedere ogni include di sistema per esporre strdup() */
+#define _XOPEN_SOURCE_EXTENDED 1
+
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>

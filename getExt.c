@@ -10,10 +10,12 @@
  #define _AMB_ ZOS
 #endif
 
+/* deve precedere ogni include di sistema per esporre basename() */
+#define _XOPEN_SOURCE_EXTENDED 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define _XOPEN_SOURCE_EXTENDED 1
 #include <libgen.h>
 
 /*  return the filename and extension */

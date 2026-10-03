@@ -9,6 +9,7 @@
  #define _AMB_ ZOS
 #endif
 
+#include <stdio.h>      /* for FILE, size_t usati nei prototipi    */
 #include <time.h>       /* for clock_t, clock(), gmtime() ... */
 
 #define PARNUM 11    //  numero di filtri ammessi
@@ -169,7 +170,7 @@ extern st_sm80_evt    * findevt(const char *name, st_sm80_evt *root_evt);       
 extern list_parameter * findparm(char *name, uint8_t num, list_parameter *root_parameter);        // restituisce putatore nodo par. per nome o valore
 extern char           * getlrow( char * buff, FILE * parm );                                      // lettura di una riga logica di parametri
 extern int              gettrow(char *buff, runparm *p_param);                                    // tokenizza la riga logica
-// extern st_sm80_cls    * getCls(char *filename, char *member);                                  // get linkedlist of RACF Classes
+extern void             get_cl_time(char * t);                                                    // return a string with current local time
 extern st_sm80_cls    * get_CDT( void );                                                          // get linkedlist of RACF Classes
 extern st_sm80_evq    * getEvq(char *filename, char *member, char *d_evt);                        // get linkedlist of event qual for an event
 extern st_sm80_evt    * getEvt(char *filename, char *member);                                     // get linkedlist of events
@@ -187,3 +188,4 @@ extern int              fltparm(list_parameter *p_par, char *name, uint32_t valu
 extern char           * format_smftime(char * buffer, uint32_t smftime);                          // format ora in 1/100s rec SMF
 extern void             stck_tm(char *pData, struct timespc *pTimespc);                           // Conv STCK in tempo da 1/1/1970 (UNIX time)
 extern char           * format_smfdate(char * buffer, uint32_t smfdate);                          // format data SMF 0x0cyydddF
+extern int              smf81dec(FILE *fdmp, char *smf_buf, size_t reclen);                       // decodifica valori dei rec SMF 81 (partenza RACF)

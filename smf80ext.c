@@ -73,6 +73,8 @@
 #ifdef __COMPILER_VER__
  #pragma filetag ("IBM-1140")
  #define _AMB_ ZOS
+/* per ottenere calcolo offset                                      */
+ #pragma options (aggregate)
 #endif
 
 #define XLC_METAL_COMPILE
@@ -83,13 +85,11 @@
 #include <string.h>
 #include <locale.h>
 #include <stdint.h>
-#define _XOPEN_SOURCE_EXTENDED 1
-#include <libgen.h>
 
 /* smf80ext headers */
-#include "smf80ext.h"     // definizioni di supporto: strutture usate
 #include "smf80sup.h"     // definizioni di supporto: costanti e variabili
 #include "smf80fmt.h"     // definizione aree dei record SMF80
+#include "smf80ext.h"     // definizioni di supporto: strutture usate
 
 // costanti da usare in header messaggi printf()
 char *pgm_name = NULL;
@@ -261,8 +261,7 @@ int main( int argc, char * argv[] ) {
  printf("  ---ora-- Mrec. --SMF dt-- --SMF tme--  evt -name-   ------Description--------------------------------- ----estr.---\n");
 
  while ( 1 ) {  // ciclo infinito interrotto con break
-   int num_op, fil_type;
-   int fl_ok, op;                      // per filtro in AND nel ciclo
+   int fl_ok;                          // per filtro in AND nel ciclo
    num = fread( smf_buf, 1, sizeof smf_buf, fsmf );
    if ( feof(fsmf) ) break;            // finito input
    ++t_smfl;
@@ -415,7 +414,7 @@ int main( int argc, char * argv[] ) {
    p_par = p_runparm->root_param[CLASS];
    if ( p_par ) {
      int curr_sec = l_sez[CLASS];
-     list_filter *pf = p_par->param_filter;  // primo valore richiesto
+/*   list_filter *pf = p_par->param_filter;  // primo valore richiesto **unused* */
      smf80dts = a_dta[curr_sec]->rel;
      ll_cmp = smf80dts->SMF80DLN;
      memset(t_str, 0, sizeof t_str);

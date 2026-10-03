@@ -46,6 +46,9 @@ MAINO   = $(TARGET).o
 # dipendenze del programma principale
 MAINU   = $(TARGET).u
 #
+# mappa di struct/union nei listing: vuota di default, attivabile con
+#   make -f smf80ext.mk AGGR=-Wc,AGGREGATE
+AGGR    =
 DBG     = -g
 OPT     = -O
 MAK     = -qmakedep=gcc
@@ -56,7 +59,7 @@ DLST    = ./lst
 #
 TARGET  = smf80ext
 CC      = xlc
-CFLAGS  = -Wc,list -qsource $(OPT) $(MAK) $(DBG)
+CFLAGS  = -Wc,list -qsource $(OPT) $(MAK) $(DBG) $(AGGR)
 MFLAGS  = -S -qmetal -qsource -qlanglvl=extc99 $(MAK)
 MINCL   = -Wc,NOSEARCH -I /usr/include/metal/
 MPROLOG = metalc_prolog.mac
@@ -71,13 +74,13 @@ SDB     = smf81dec
 # smf80ext: $(HEADERS) $(MYOBJ) $(MOBJS) $(MYLIB:¬"lib":+"$A") $(IRRSEQ:¬"lib":+"$A") $$*.c
 $(TARGET): $(MAINO) $(OBJS) $(MOBJS)
 #	$(CC) $(CFLAGS) -L. -o $(MYOUT)$@ $@.c -l $(MYLIB) -l $(IRRSEQ) >$*$L
-	$(CC) $(DBG) -o $(MYOUT)$@ $(MAINO) $(OBJS) $(MOBJS) >$(DLST)/$@.lnk
+	$(CC) $(DBG) -o $(MYOUT)$@ $(MAINO) $(OBJS) $(MOBJS) >$(DLST)/$@.lnk 2>&1
 	echo Linkato il programma $@ messaggi binder in $(DLST)/$@.lnk  modulo in $(MYOUT)$@
 	cp $(MYOUT)$@ "//'<MyPrefix>.LLIB($@)'"
 	echo copiato il modulo $@ nel PDSE //'<MyPrefix>.LLIB($@)'
-	cp $@$L "//'<MyPrefix>.C.DBG($@)'"
+	cp $(DLST)/$@$L "//'<MyPrefix>.C.DBG($@)'"
 	echo copiato listing $@ in libreria per FA //'<MyPrefix>.C.DBG($@)'
-	cp $(SDB)$L "//'<MyPrefix>.C.DBG($(SDB))'"
+	cp $(DLST)/$(SDB)$L "//'<MyPrefix>.C.DBG($(SDB))'"
 	echo copiato listing $(SDB) in libreria per FA //'<MyPrefix>.C.DBG($(SDB))'
 #
 $(MSRCS): $$*.c
@@ -101,10 +104,10 @@ $(OBJS) $(MAINO): $$*.c
 # pulizia degli oggetti per la ricompilazione totale
 .PHONY : clean
 clean:
-	$(RM) $(OBJS) $(MAINO)
-	$(RM) $(MOBJS)
-	$(RM) $(MSRCS)
-	$(RM) $(DEPS) $(MDEP) $(MAINU)
+	$(RM) -f $(OBJS) $(MAINO)
+	$(RM) -f $(MOBJS)
+	$(RM) -f $(MSRCS)
+	$(RM) -f $(DEPS) $(MDEP) $(MAINU)
 #
 # dipendenze dagli header generate da -qmakedep (ignorate se assenti)
 .INCLUDE .IGNORE : $(DEPS) $(MDEP) $(MAINU)

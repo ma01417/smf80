@@ -28,6 +28,7 @@
 #include <time.h>
 
 #include "smf81fmt.h"     // definizione aree dei record SMF81
+#include "smf80ext.h"     // definizione struct e funzioni esterne
 
 // lunghezza riga separatori
 #define LSEP 87

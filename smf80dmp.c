@@ -77,8 +77,6 @@
 #include <string.h>
 #include <locale.h>
 #include <stdint.h>
-#define _XOPEN_SOURCE_EXTENDED 1
-#include <libgen.h>
 
 /* smf80ext headers */
 #include "smf80ext.h"     // definizioni di supporto: strutture usate

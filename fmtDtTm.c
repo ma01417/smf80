@@ -108,7 +108,7 @@ extern char *format_smfdate(char * buffer, uint32_t smfdate) {
 }
 
 /* C implementation of digital clock  */
-extern void get_cl_time(char * t[])
+extern void get_cl_time(char * t)
 {
   time_t s;
   struct tm* current_time;
