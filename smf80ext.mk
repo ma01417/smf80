@@ -4,6 +4,26 @@
 #                                                                 #
 # A.Brezzi giugno 2024                                            #
 #                                                                 #
+# Uso:                                                            #
+#  make -f smf80ext.mk                           - solo modifiche #
+#  make -p -f smf80ext.mk [>makeout.txt]         - listing make   #
+#  make -u -f smf80ext.mk                        - unconditional  #
+#  make -f smf80ext.mk clean                     - pulizia        #
+#                                                                 #
+#  Nelle regole si possono aggiungere le variabili sotto          #
+#  illustrate                                                     #
+#  Variabili                                                      #
+#   AGGR=-Wc,AGGREGATE                                            #
+#    nel listing produce una tabella con gli offset dei campi     #
+#    nelle struct e nelle union                                   #
+#   DBG=-g                                                        #
+#    crea file .dbg per il debugger; attenzione: se usata non     #
+#    consente la ottimizzazione del codice                        #
+#                                                                 #
+#  NOTA: make non rileva il cambio di variabili/opzioni: quando   #
+#  si attiva o disattiva DBG o AGGR usare -u, es.                 #
+#    make -u -f smf80ext.mk DBG=-g                                #
+#                                                                 #
 # --------------------------------------------------------------- #
 # Elenco sorgenti C nativo
 SRCS    = strup.c \
@@ -41,15 +61,15 @@ METAL   = racfree_metal.c \
 MDEP    = $(METAL:.c=.u)
 # oggetti da compilazione dei sorgenti C
 OBJS    = $(SRCS:.c=.o)
+# programma principale
+TARGET  = smf80ext
 # oggetto del programma principale (compilato a parte, poi linkato)
 MAINO   = $(TARGET).o
 # dipendenze del programma principale
 MAINU   = $(TARGET).u
 #
-# mappa di struct/union nei listing: vuota di default, attivabile con
-#   make -f smf80ext.mk AGGR=-Wc,AGGREGATE
 AGGR    =
-DBG     = -g
+DBG     =
 OPT     = -O
 MAK     = -qmakedep=gcc
 MOBJS   = $(METAL:.c=.o)
@@ -57,9 +77,8 @@ MOBJS   = $(METAL:.c=.o)
 MSRCS   = $(METAL:.c=.s)
 DLST    = ./lst
 #
-TARGET  = smf80ext
 CC      = xlc
-CFLAGS  = -Wc,list -qsource $(OPT) $(MAK) $(DBG) $(AGGR)
+CFLAGS  = -Wc,list -qsource $(DBG) $(OPT) $(MAK) $(AGGR)
 MFLAGS  = -S -qmetal -qsource -qlanglvl=extc99 $(MAK)
 MINCL   = -Wc,NOSEARCH -I /usr/include/metal/
 MPROLOG = metalc_prolog.mac

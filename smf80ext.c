@@ -73,8 +73,11 @@
 #ifdef __COMPILER_VER__
  #pragma filetag ("IBM-1140")
  #define _AMB_ ZOS
-/* per ottenere calcolo offset                                      */
+/* ------------------------------------------------------------
+  per ottenere calcolo offset solo per questo programma
+  togliere dal commento
  #pragma options (aggregate)
+   ------------------------------------------------------------ */
 #endif
 
 #define XLC_METAL_COMPILE
