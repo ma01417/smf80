@@ -36,6 +36,8 @@ static long field2long(const RacseqField *f, int *ok);
 static int text2bool(const RacseqField *f, const char *yes_value);
 // funzione per duplicare un campo testuale RacseqField in una stringa malloc'd
 static char *dup_field_text(const RacseqField *f);
+// funzione per copiare un campo testuale in un buffer del chiamante (troncato a size-1)
+static void copy_field_text(const RacseqField *f, char *buf, size_t size);
 //funzione per popolare un elemento della lista delle classi
 void push_cls(const char * name, int maxL, int act, int ope, int mix, char * RC,
               int typ, char * mem, char * desc);
@@ -59,7 +61,7 @@ extern st_sm80_cls *get_CDT( void ) {
     RacseqStatus  st;
     RacseqRC      rc;
     int count = 0;
-    char c_desc[51];                       // descrizione della classe
+    char c_desc[81];                       // descrizione della classe
 
 // crea la lista ed inserisce manualmente la classe DATASET
     strcpy(c_desc,"Attiva, LL prof:  44, upper, def RC:4, OPER");
@@ -98,11 +100,9 @@ void extract_data(RacseqProfile *p) {
   int  c_mix  = 0;            // mixed case
   int  c_typ  = 0;            // tipo di classe (0=normale, 1=grouping)
   char c_mem[9];              // nome della classe MEMBER se grouping class
-  char c_desc[51];            // descrizione della classe
+  char c_desc[81];            // descrizione della classe (max 80 come p_desc in chkparm)
   char c_RC[8];               // RC per profilo non trovato
-  char * fld;                 // pointer ai campi duplicati
-  char d[] = "Elenco classi e proprieta'";
-  char * f = alloca(40);
+  char c_ll[12];              // massima lunghezza profilo in formato testo
 
 // nome della classe
   strncpy(c_name, p->profile_name,8);
@@ -126,8 +126,8 @@ void extract_data(RacseqProfile *p) {
     }
  }
     strcat(c_desc,", LL prof:");
-    sprintf(c_RC,"%4d",c_maxl);
-    strcat(c_desc,c_RC);
+    sprintf(c_ll,"%4d",c_maxl);
+    strcat(c_desc,c_ll);
 // e' mixed case ?
  {
   const RacseqField *mix_f = find_field(s, "PRESCASE");
@@ -148,21 +148,21 @@ void extract_data(RacseqProfile *p) {
     }
  }
 // converte il RC per profilo non trovato
+  copy_field_text(find_field(s, "DEFRC"), c_RC, sizeof c_RC);
   strcat(c_desc,", def RC:");
-  strcat(c_desc,dup_field_text(find_field(s, "DEFRC")));
+  strcat(c_desc,c_RC);
 
 // e' grouping class ?
  {
   const RacseqField *typ_f = find_field(s, "RESGROUP");
   c_typ = typ_f && typ_f->is_boolean ? typ_f->bool_value : 0;
   if (c_typ) {       // se trattasi di grouping class estrae la classe member
-    typ_f = find_field(s, "XREF");
-    strcpy(c_mem,dup_field_text(find_field(s, "XREF")));
+    copy_field_text(find_field(s, "XREF"), c_mem, sizeof c_mem);
     strcat(c_desc,", mem: ");
     strcat(c_desc,c_mem);
     }
     else {
-      c_mem[1] = '\0';
+      c_mem[0] = '\0';
     }
 
 // inserisce il nodo
@@ -291,9 +291,25 @@ static char *dup_field_text(const RacseqField *f)
     char *s;
     if (!f || f->is_boolean || f->value_len <= 0) return NULL;
     s = (char *)malloc((size_t)f->value_len + 1);
+    if (!s) return NULL;
     memcpy(s, f->value, (size_t)f->value_len);
     s[f->value_len] = '\0';
     return s;
+}
+
+/* copy_field_text() - copia un campo testuale nel buffer `buf` di `size`
+ * byte, troncandolo se necessario e terminandolo sempre con NUL. Se il
+ * campo non esiste o e' vuoto lascia `buf` vuoto. A differenza di
+ * dup_field_text() non lascia memoria da liberare al chiamante. */
+static void copy_field_text(const RacseqField *f, char *buf, size_t size)
+{
+    char *t = dup_field_text(f);
+
+    buf[0] = '\0';
+    if (t == NULL) return;
+    strncpy(buf, t, size - 1);
+    buf[size - 1] = '\0';
+    free(t);
 }
 
 /* Libera solo segments/entries/occurrences/subfields - NON raw_buffer.

@@ -21,20 +21,32 @@
 /*  return the filename and extension */
 extern char *getExt(const char *path_name, char *ext)
 {
-  char *p, *s, *file_name;
-  file_name = malloc(100);
-  if ( file_name==NULL) return NULL;     // no memory
+  char *p, *s, *file_name, *path_copy;
+  size_t len;
 
-  s = basename(path_name);               // ottiene nome completo
+  // basename() puo' modificare la stringa ricevuta: lavora su una copia
+  path_copy = strdup(path_name);
+  if ( path_copy == NULL ) return NULL;  // no memory
+
+  s = basename(path_copy);               // ottiene nome completo
   p = strrchr(s, '.'); // cerca separtore ext.
 
-  if(p == NULL) return NULL;             // char '.' not found
+  if(p == NULL) {                        // char '.' not found
+    free(path_copy);
+    return NULL;
+  }
 
-  strncpy(file_name, s,(int)((int) p - (int) s ));    // copia il nome
-  strcpy(ext, ++p);                   // copia il suffisso
+  len = (size_t)(p - s);                 // lunghezza del nome senza ext.
+  file_name = malloc(len + 1);
+  if ( file_name == NULL ) {             // no memory
+    free(path_copy);
+    return NULL;
+  }
+  memcpy(file_name, s, len);             // copia il nome
+  file_name[len] = '\0';
+  strcpy(ext, p + 1);                    // copia il suffisso
 
-  file_name = realloc(file_name, strlen(file_name) + 1);
-
+  free(path_copy);
   return file_name;
 }
 
