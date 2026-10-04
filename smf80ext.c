@@ -56,7 +56,8 @@
 /*       contenente i record SMF estratti                            */
 /*      DD: UTIDEC                                                   */
 /*       file sequenziale VB con la decodifica dei record SMF81      */
-/*       incontrati, inizializzazione RACF                           */
+/*       incontrati, inizializzazione RACF; se allocata DUMMY o non  */
+/*       allocata la decodifica non viene eseguita                   */
 /*                                                                   */
 /*  Autorizzazioni richieste :                                       */
 /*          READ  access al DS SMF                                   */
@@ -93,6 +94,7 @@
 #include "smf80sup.h"     // definizioni di supporto: costanti e variabili
 #include "smf80fmt.h"     // definizione aree dei record SMF80
 #include "smf80ext.h"     // definizioni di supporto: strutture usate
+#include "getdsn.h"       // data set allocati alle DD (SVC 99)
 
 // costanti da usare in header messaggi printf()
 char *pgm_name = NULL;
@@ -158,6 +160,8 @@ extern st_sm80_evt *findevtn(uint8_t num_evt, st_sm80_evt *root_evt);
 int check_parm(char *name, uint8_t value, list_filter *p, int op, int fil_type);
 // routine che restituisce max e min per orari forniti in array con date e time;
 void check_clock(uint32_t smfdt, uint32_t smftm, uint32_t mind[2], uint32_t maxd[2]);
+// routine che stampa i data set allocati alle DD del programma
+static void print_alloc(void);
 
 
 /* files handler  */
@@ -175,6 +179,7 @@ int main( int argc, char * argv[] ) {
  char fil_smf[]  = "DD:UTI001";                   // file SMF VBS input
  char fil_out[]  = "DD:UTI002";                   // file SMF VBS output
  char fil_dec[]  = "DD:UTIDEC";                   // file prt record SMF81 output
+ int  dec_on;                                     // 1 se UTIDEC allocata e non DUMMY
 
 // minima e massima date ed ora incontrate nei rec SMF
  uint32_t  min_clk[] = {UINT_MAX, UINT_MAX};
@@ -223,6 +228,7 @@ int main( int argc, char * argv[] ) {
  get_cl_time(l_t);
  printf(" \n");
  printf("%s %s Apertura DS elaborazione\n", pgm_name, l_t);
+ print_alloc();                                  // riepilogo DS allocati
  /* apertura file con i record SMF da trattare     */
  fsmf=openf(fil_smf, "rb,recfm=VBS,lrecl=X,type=record", "SMF input", pgm_name);
  if ( !fsmf ) exit(8);
@@ -231,9 +237,26 @@ int main( int argc, char * argv[] ) {
  fout=openf(fil_out, "wb,recfm=VBS,lrecl=32760,blksize=32760,type=record", "SMF output", pgm_name);
  if ( !fout ) exit(8);
 
- /* apertura file per decodifica record SMF 81     */
- fdmp=openf(fil_dec, "w,recfm=VB,lrecl=170", "Decodifica SMF 81", pgm_name);
- if ( !fdmp ) exit(8);
+ /* apertura file per decodifica record SMF 81, solo se UTIDEC e' allocata */
+ /* e non DUMMY: la mancanza della DD e' trattata come DUMMY            */
+ {
+  st_dd_info *dec = get_DSName("UTIDEC");
+  if ( dec == NULL ) {
+    dec_on = 0;
+    printf("%s W: UTIDEC non allocata, inserirla nel JCL e metterla a DUMMY "
+           "se non richiesta stampa rec SMF81\n", pgm_name);
+    }
+  else {
+    dec_on = !is_dd_dummy(dec);
+    if ( !dec_on )
+      printf("%s UTIDEC DUMMY: decodifica dei record SMF 81 non eseguita\n", pgm_name);
+    }
+  free_DSName(dec);
+ }
+ if ( dec_on ) {
+   fdmp=openf(fil_dec, "w,recfm=VB,lrecl=170", "Decodifica SMF 81", pgm_name);
+   if ( !fdmp ) exit(8);
+   }
 
  /* apertura file per dati DBG per i record estratti  */
  // fdbg=openf(fil_dbg, "w,recfm=VB,lrecl=604,blksize=27998,type=record", "DBG per SMF output", pgm_name);
@@ -299,9 +322,10 @@ int main( int argc, char * argv[] ) {
 // filtra solo record 80
    if ( smf80_type != 80 )
      {
-      if ( smf80_type == 81 )      // record SMF 81 --> lo decodifica
+      if ( smf80_type == 81 )      // record SMF 81 --> lo decodifica se UTIDEC e' attiva
         {
-        smf81dec(fdmp, smf_buf, num);
+        if ( dec_on )
+          smf81dec(fdmp, smf_buf, num);
         ++t_smf1;
         }
       continue;
@@ -489,7 +513,8 @@ int main( int argc, char * argv[] ) {
 
    printf(" \n% 8s %s numero record letti %'14d\n", pgm_name, l_t, t_smfl);
    printf("% 8s %s di cui rec 80       %'14d\n", vid_name, l_t, t_smfe);
-   printf("% 8s %s      e rec 81       %'14d\n", vid_name, l_t, t_smf1);
+   printf("% 8s %s      e rec 81       %'14d%s\n", vid_name, l_t, t_smf1,
+          dec_on ? "" : "  non decodificati (UTIDEC DUMMY o non allocata)");
    printf("% 8s %s estratti ok         %'14d\n", vid_name, l_t, t_smfp);
    printf(" \n");
    p_evt = root_evt;
@@ -572,4 +597,26 @@ void check_clock(uint32_t smfdt, uint32_t smftm, uint32_t mind[2], uint32_t maxd
        mind[1] = smftm;
      }
   return;
+}
+
+/* ------------------------------------------------------ */
+/* stampa i data set allocati alle DD del programma, per  */
+/* il riepilogo dell'esecuzione                           */
+/* ------------------------------------------------------ */
+static void print_alloc(void) {
+ static const char *dd[] = { "UTIPARM", "UTICNTL", "UTI001", "UTI002", "UTIDEC" };
+ st_dd_info *list;
+ int i;
+
+ printf("\n%s data set allocati\n", pgm_name);
+ printf("DDNAME   pos tipo   data set / path                                        sta disp    org  volume\n");
+ for ( i = 0; i < NUMELE(dd); i++ ) {
+   list = get_DSName(dd[i]);
+   if ( list == NULL )
+     printf("%-8s     non allocata\n", dd[i]);
+   else
+     print_DSName(stdout, list);
+   free_DSName(list);
+ }
+ printf("\n");
 }

@@ -36,6 +36,7 @@ SRCS    = strup.c \
           getEvt.c \
           getEvq.c \
           get_CDT.c \
+          getdsn.c \
           getSez.c \
           makeargv.c \
           crfilter.c \
