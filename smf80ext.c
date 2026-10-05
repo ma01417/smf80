@@ -12,7 +12,8 @@
 /*   Descrizione:                                                    */
 /*      Filtra record SMF 80 (RACF) in base ad un file di criteri    */
 /*      e ne crea un estratto rispondente ai filtri forniti per      */
-/*      ulteriori operazioni                                         */
+/*      ulteriori operazioni e/o una stampa esadecimale (dump)       */
+/*      formattata con l'header e le sezioni DTA e DT2               */
 /*                                                                   */
 /*   Input:                                                          */
 /*      DD:UTIPARM                                                   */
@@ -53,19 +54,29 @@
 /*   Output:                                                         */
 /*      DD: UTI002                                                   */
 /*       file sequenziale VBS filtrato in base ai criteri dati       */
-/*       contenente i record SMF estratti                            */
+/*       contenente i record SMF estratti; se allocata DUMMY o       */
+/*       non allocata l'estratto non viene creato                    */
+/*      DD: UTIDMP                                                   */
+/*       file sequenziale VBA con la stampa esadecimale (dump)       */
+/*       dei record estratti; se allocata DUMMY o non allocata       */
+/*       il dump non viene eseguito                                  */
 /*      DD: UTIDEC                                                   */
 /*       file sequenziale VB con la decodifica dei record SMF81      */
 /*       incontrati, inizializzazione RACF; se allocata DUMMY o non  */
 /*       allocata la decodifica non viene eseguita                   */
 /*                                                                   */
+/*  Parametri di esecuzione (PARM='/n') :                            */
+/*          n numero massimo di record da stampare nel dump;         */
+/*            se omesso vengono stampati tutti i record estratti     */
+/*                                                                   */
 /*  Autorizzazioni richieste :                                       */
 /*          READ  access al DS SMF                                   */
-/*          ALTER / UPDATE access al DS UTI002                       */
+/*          ALTER / UPDATE access ai DS UTI002 e UTIDMP              */
 /*          UPDATE access al DS UTIDEC                               */
 /*                                                                   */
-/*  Uso:    Tramite JCL con DD UTI001 UTI002 UTIDEC UTIPARM          */
-/*          e UTICNTL  preallocate                                   */
+/*  Uso:    Tramite JCL con DD UTI001 UTI002 UTIDMP UTIDEC           */
+/*          UTIPARM e UTICNTL preallocate; UTI002, UTIDMP e          */
+/*          UTIDEC possono essere DUMMY                              */
 /*                                                                   */
 /*                                                                   */
 /* ================================================================= */
@@ -129,10 +140,16 @@ SMF80SEC_FL tobefind;
 int          smf_dta_dtp;     // Data type delle sezioni rilocabili
 
 rel_sect  * a_dta[100];
+rel_sec2  * a_dt2[200];
 
-rel_sect  * p_dta_s, * root_dta;;
+rel_sect  * p_dta_s, * root_dta;
+rel_sec2  * p_dt2_s, * root_dt2;
+
+// buffer per stampa elenco sezioni nel dump
+char riga_dmp[280];
 
 int num_dta = 0;
+int num_dt2 = 0;
 
 // minima e massima lunghezza dei record letti
 uint32_t min_llrec = sizeof smf_buf;
@@ -142,15 +159,18 @@ int  t_smfl = 0;          // total records read
 int  t_smfe = 0;          // total records SMF 80
 int  t_smf1 = 0;          // total records SMF 81
 int  t_smfp = 0;          // total record filtered
+int  t_dmpp = 0;          // total record stampati nel dump
 int  num = 0;             // bytes trasferiti
 
 int str_split(char *sp, char *token, char sep); // divide una stringa <t1>.<t2>... nei componenti base
 
 // contructors per sezioni relocabili
-extern rel_sect *createDta(const SMF80DTS *p_dts, rel_sect * p_root, int nrec); // constructor struttura dati sez rilocabili
+extern rel_sect *createDta(const SMF80DTS *p_dts, rel_sect * p_root, int nrec);    // constructor struttura dati sez rilocabili
+extern rel_sec2 *createDt2(const SMF80DT2 *p_dt2, rel_sec2 * p_root2, int nrec);   // constructor struttura dati sez rilocabili extended
 
 // free memory per i nodi delle sezioni
 extern void free_dta( rel_sect * p_node);
+extern void free_dt2( rel_sec2 * p_node);
 
 // routine che restituisce la descrizione di una sezione
 char     *findsez(int n_sez, st_sm80_sez * p_sez);   // restituisce pointer descrizione sezione
@@ -162,12 +182,19 @@ int check_parm(char *name, uint8_t value, list_filter *p, int op, int fil_type);
 void check_clock(uint32_t smfdt, uint32_t smftm, uint32_t mind[2], uint32_t maxd[2]);
 // routine che stampa i data set allocati alle DD del programma
 static void print_alloc(void);
+// routine che verifica se una DD di output e' allocata e non DUMMY
+static int  dd_active(const char *ddname, const char *req, const char *what);
+// routine che stampa il record SMF 80 corrente in formato dump
+static void dump_record(void);
+// routine per dbg di comando TSO
+void listalc( void );
 
 
 /* files handler  */
 FILE *fsmf;    // FILE con SMF input
 FILE *fout;    // FILE per i record estratti
-FILE *fdmp;    // FILE per decodifica rec SMF 81
+FILE *fdmp;    // FILE per il dump dei record estratti
+FILE *fdec;    // FILE per decodifica rec SMF 81
 
 /*********************************************************************/
 /* smf80ext mainline                                                 */
@@ -178,8 +205,12 @@ int main( int argc, char * argv[] ) {
  char fil_cntl[] = "DD:UTICNTL";                  // DD PDS per decodifiche
  char fil_smf[]  = "DD:UTI001";                   // file SMF VBS input
  char fil_out[]  = "DD:UTI002";                   // file SMF VBS output
+ char fil_dmp[]  = "DD:UTIDMP";                   // file VBA con il DUMP dei rec 80
  char fil_dec[]  = "DD:UTIDEC";                   // file prt record SMF81 output
+ int  out_on;                                     // 1 se UTI002 allocata e non DUMMY
+ int  dmp_on;                                     // 1 se UTIDMP allocata e non DUMMY
  int  dec_on;                                     // 1 se UTIDEC allocata e non DUMMY
+ unsigned long num_prt = 0;                       // limite record nel dump (0 = tutti)
 
 // minima e massima date ed ora incontrate nei rec SMF
  uint32_t  min_clk[] = {UINT_MAX, UINT_MAX};
@@ -233,30 +264,40 @@ int main( int argc, char * argv[] ) {
  fsmf=openf(fil_smf, "rb,recfm=VBS,lrecl=X,type=record", "SMF input", pgm_name);
  if ( !fsmf ) exit(8);
 
- /* apertura file per i record SMF estratti        */
- fout=openf(fil_out, "wb,recfm=VBS,lrecl=32760,blksize=32760,type=record", "SMF output", pgm_name);
- if ( !fout ) exit(8);
+ /* apertura dei file di output solo per le DD allocate e non DUMMY:   */
+ /* la mancanza di una DD e' trattata come DUMMY                       */
+ out_on = dd_active("UTI002", "estrazione rec SMF80",  "estrazione dei record SMF 80");
+ dmp_on = dd_active("UTIDMP", "stampa dump rec SMF80", "stampa dump dei record SMF 80");
+ dec_on = dd_active("UTIDEC", "stampa rec SMF81",      "decodifica dei record SMF 81");
 
- /* apertura file per decodifica record SMF 81, solo se UTIDEC e' allocata */
- /* e non DUMMY: la mancanza della DD e' trattata come DUMMY            */
- {
-  st_dd_info *dec = get_DSName("UTIDEC");
-  if ( dec == NULL ) {
-    dec_on = 0;
-    printf("%s W: UTIDEC non allocata, inserirla nel JCL e metterla a DUMMY "
-           "se non richiesta stampa rec SMF81\n", pgm_name);
-    }
-  else {
-    dec_on = !is_dd_dummy(dec);
-    if ( !dec_on )
-      printf("%s UTIDEC DUMMY: decodifica dei record SMF 81 non eseguita\n", pgm_name);
-    }
-  free_DSName(dec);
- }
- if ( dec_on ) {
-   fdmp=openf(fil_dec, "w,recfm=VB,lrecl=170", "Decodifica SMF 81", pgm_name);
-   if ( !fdmp ) exit(8);
+ /* apertura file per i record SMF estratti        */
+ if ( out_on ) {
+   fout=openf(fil_out, "wb,recfm=VBS,lrecl=32760,blksize=32760,type=record", "SMF output", pgm_name);
+   if ( !fout ) exit(8);
    }
+
+ /* apertura file per il dump dei record estratti e limite di stampa */
+ if ( dmp_on ) {
+   fdmp=openf(fil_dmp, "w,recfm=VBA,lrecl=170", "DUMP sezioni SMF", pgm_name);
+   if ( !fdmp ) exit(8);
+   if ( argc > 1 ) {
+     char * stp_str;
+     num_prt = strtoul( argv[1], &stp_str, 10);
+     }
+   if ( num_prt )
+     printf("% 8s fornito limite stampa dump, stampo %lu record\n", pgm_name, num_prt);
+   else
+     printf("% 8s non fornito limite stampa dump, stampo tutti i record estratti\n", pgm_name);
+   }
+
+ /* apertura file per decodifica record SMF 81     */
+ if ( dec_on ) {
+   fdec=openf(fil_dec, "w,recfm=VB,lrecl=170", "Decodifica SMF 81", pgm_name);
+   if ( !fdec ) exit(8);
+   }
+
+ if ( !out_on && !dmp_on )
+   printf("%s UTI002 e UTIDMP DUMMY: nessun estratto ne' dump, solo statistiche\n", pgm_name);
 
  /* apertura file per dati DBG per i record estratti  */
  // fdbg=openf(fil_dbg, "w,recfm=VB,lrecl=604,blksize=27998,type=record", "DBG per SMF output", pgm_name);
@@ -265,6 +306,8 @@ int main( int argc, char * argv[] ) {
  /* azzera strutture per info sezioni relocabili e rel extended */
  for ( int i=0; i<NUMELE(a_dta); i++ )
      a_dta[i] = NULL;
+ for ( int i=0; i<NUMELE(a_dt2); i++ )
+     a_dt2[i] = NULL;
 
  tobefind = p_runparm->smf80sec_fl;
 
@@ -325,7 +368,7 @@ int main( int argc, char * argv[] ) {
       if ( smf80_type == 81 )      // record SMF 81 --> lo decodifica se UTIDEC e' attiva
         {
         if ( dec_on )
-          smf81dec(fdmp, smf_buf, num);
+          smf81dec(fdec, smf_buf, num);
         ++t_smf1;
         }
       continue;
@@ -334,8 +377,13 @@ int main( int argc, char * argv[] ) {
 // conteggia evento
    ++t_smfe;                                        // total records SMF 80
    p_evt = findevtn(smf80hdr->SMF80EVT, root_evt);  // puntatore all'elemento con evento
-   if ( p_evt )
+   if ( p_evt ) {
      ++p_evt->evt_numf;
+     if ( CHECK_BIT16(smf80hdr->SMF80DES, 0) )
+         ++p_evt->evt_viol;
+     if ( CHECK_BIT16(smf80hdr->SMF80DES, 3) )
+         ++p_evt->evt_warn;
+   }
 
 /*********************************************************************/
 /* smf80ext filtri su Header del record SMF 80                       */
@@ -414,11 +462,14 @@ int main( int argc, char * argv[] ) {
    num_dta  = smf80hdr->SMF80CNT;                     // numero di sezioni
    for (int i=0; i<num_dta; ++i) {      // ricerca tutte le sezioni
      smf_dta_dtp = smf80dts->SMF80DTP;
-     if ( smf_dta_dtp > NUMELE(a_dta) )
-       fprintf(stderr,"% 8s Sezione %d '%x' oltre i limiti consentiti sezioni ammissibile\n", pgm_name, smf_dta_dtp, smf_dta_dtp);
-     root_dta = a_dta[smf_dta_dtp];
-     root_dta = createDta(smf80dts, root_dta, t_smfl);    // crea struttura
-     a_dta[smf_dta_dtp] = root_dta;
+     if ( smf_dta_dtp >= (int) NUMELE(a_dta) )
+       fprintf(stderr,"% 8s rec %d Sezione %d '%x' oltre i limiti consentiti sezioni ammissibile, ignorata\n",
+               pgm_name, t_smfl, smf_dta_dtp, smf_dta_dtp);
+     else {
+       root_dta = a_dta[smf_dta_dtp];
+       root_dta = createDta(smf80dts, root_dta, t_smfl);    // crea struttura
+       a_dta[smf_dta_dtp] = root_dta;
+       }
      smf80dts =(SMF80DTS *)((uintptr_t) smf80dts + (uintptr_t) smf80dts->SMF80DLN +2); // prossima sezione dati
    }    // fine loop sezioni DTA sulle quali facciamo i filtri
 
@@ -496,11 +547,22 @@ int main( int argc, char * argv[] ) {
 // se non ha passato i filtri allora lo scarta e tratta il prossimo
    if ( !fl_ok )  continue;              // scarta
 
-// altrimenti scrive record in output
+// altrimenti scrive il record in output e/o lo stampa in formato dump
    ++t_smfp;                           // total records extr.
-   num = fwrite( smf_buf, 1, num, fout );
    if ( p_evt )
      ++p_evt->evt_nume;
+   if ( out_on )
+     fwrite( smf_buf, 1, num, fout );
+   if ( dmp_on ) {
+     if ( num_prt == 0 || t_dmpp < num_prt ) {
+       ++t_dmpp;
+       dump_record();
+       }
+     else if ( !out_on ) {             // solo dump e limite raggiunto: termina
+       printf("% 8s raggiunto il limite di stampa dump (%lu record), lettura interrotta\n", pgm_name, num_prt);
+       break;
+       }
+     }
   }
    get_cl_time(l_t);
    printf(" \n");
@@ -515,19 +577,26 @@ int main( int argc, char * argv[] ) {
    printf("% 8s %s di cui rec 80       %'14d\n", vid_name, l_t, t_smfe);
    printf("% 8s %s      e rec 81       %'14d%s\n", vid_name, l_t, t_smf1,
           dec_on ? "" : "  non decodificati (UTIDEC DUMMY o non allocata)");
-   printf("% 8s %s estratti ok         %'14d\n", vid_name, l_t, t_smfp);
+   printf("% 8s %s estratti ok         %'14d%s\n", vid_name, l_t, t_smfp,
+          out_on ? "" : "  non scritti (UTI002 DUMMY o non allocata)");
+   printf("% 8s %s stampati nel dump   %'14d%s\n", vid_name, l_t, t_dmpp,
+          dmp_on ? "" : "  (UTIDMP DUMMY o non allocata)");
    printf(" \n");
    p_evt = root_evt;
-   printf("Evt (hx) Evento   Descrizione                                                Numero Rec.       Estratti\n");
-   printf("--- ---- -------- ------------------------------------------------------- -------------- --------------\n");
+   printf("Evt (hx) Evento   Descrizione                                                Numero Rec.       Estratti   Violazioni      Warning\n");
+   printf("--- ---- -------- ------------------------------------------------------- -------------- -------------- ------------ ------------\n");
    while (p_evt) {
      if ( p_evt->evt_numf )
-       printf("%3d   %02x %-8s %-55s %'14d %'14d\n", p_evt->evt_value, p_evt->evt_value,
-               p_evt->evt_name, p_evt->evt_desc->data, p_evt->evt_numf, p_evt->evt_nume);
+       printf("%3d   %02x %-8s %-55s %'14d %'14d %'12d %'12d\n", p_evt->evt_value, p_evt->evt_value,
+               p_evt->evt_name, p_evt->evt_desc->data, p_evt->evt_numf, p_evt->evt_nume,
+               p_evt->evt_viol, p_evt->evt_warn);
      p_evt = p_evt->next;
    }
    printf("\n ");
    fclose(fsmf);
+   if ( out_on ) fclose(fout);
+   if ( dmp_on ) fclose(fdmp);
+   if ( dec_on ) fclose(fdec);
    return 0;
  }
 
@@ -604,7 +673,7 @@ void check_clock(uint32_t smfdt, uint32_t smftm, uint32_t mind[2], uint32_t maxd
 /* il riepilogo dell'esecuzione                           */
 /* ------------------------------------------------------ */
 static void print_alloc(void) {
- static const char *dd[] = { "UTIPARM", "UTICNTL", "UTI001", "UTI002", "UTIDEC" };
+ static const char *dd[] = { "UTIPARM", "UTICNTL", "UTI001", "UTI002", "UTIDMP", "UTIDEC" };
  st_dd_info *list;
  int i;
 
@@ -619,4 +688,131 @@ static void print_alloc(void) {
    free_DSName(list);
  }
  printf("\n");
+}
+
+/* ------------------------------------------------------ */
+/* verifica se la DD di output ddname e' allocata e non   */
+/* DUMMY; la mancanza della DD e' trattata come DUMMY con */
+/* messaggio di avvertimento. req e what descrivono       */
+/* l'elaborazione legata alla DD nei due messaggi         */
+/* ------------------------------------------------------ */
+static int dd_active(const char *ddname, const char *req, const char *what) {
+ st_dd_info *dd = get_DSName(ddname);
+ int on;
+
+ if ( dd == NULL ) {
+   on = 0;
+   printf("%s W: %s non allocata, inserirla nel JCL e metterla a DUMMY "
+          "se non richiesta %s\n", pgm_name, ddname, req);
+   }
+ else {
+   on = !is_dd_dummy(dd);
+   if ( !on )
+     printf("%s %s DUMMY: %s non eseguita\n", pgm_name, ddname, what);
+   }
+ free_DSName(dd);
+ return on;
+}
+
+/* ------------------------------------------------------ */
+/* stampa su UTIDMP il record SMF 80 corrente in formato  */
+/* dump: elenco delle sezioni, header, sezioni DTA e      */
+/* sezioni DT2 (extended)                                 */
+/* ------------------------------------------------------ */
+static void dump_record(void) {
+ st_sm80_evt *pe;
+ char head[120];
+ char *s_desc;
+ int  len = 0;
+
+// carica le sezioni DT2 estese per la stampa completa
+ for ( int i=0; i<NUMELE(a_dt2); i++ ) {
+   root_dt2 = (rel_sec2 *) a_dt2[i];
+   if ( root_dt2 ) {
+     free_dt2(root_dt2);
+     a_dt2[i] = NULL;
+     }
+   }
+ num_dt2 = smf80hdr->SMF80CT2;                      // numero di sezioni relocabili extended
+ smf80dt2 = (SMF80DT2 *)((uintptr_t) smf80hdr + (uintptr_t) smf80hdr->SMF80RL2); // prima sezione dati
+ for ( int i=0; i<num_dt2; i++ ) {
+   smf_dta_dtp = smf80dt2->SMF80TP2;
+   if ( IDT2(smf_dta_dtp) < 0 || IDT2(smf_dta_dtp) >= (int) NUMELE(a_dt2) )
+     fprintf(stderr,"% 8s rec %d Sezione %d '%x' oltre i limiti consentiti sezioni extended ammissibile, ignorata\n",
+             pgm_name, t_smfl, smf_dta_dtp, smf_dta_dtp);
+   else {
+     root_dt2 = a_dt2[IDT2(smf_dta_dtp)];
+     root_dt2 = createDt2(smf80dt2, root_dt2, t_smfl);
+     a_dt2[IDT2(smf_dta_dtp)] = root_dt2;
+     }
+   smf80dt2 = (SMF80DT2 *)((uintptr_t) smf80dt2 + (uintptr_t) smf80dt2->SMF80DL2 + 4); // prossima sezione dati
+   }
+
+// elenco delle sezioni presenti, 'R' se la sezione e' ripetuta
+ riga_dmp[0] = '\0';
+ for ( int i=0; i<NUMELE(a_dta); i++ ) {
+   p_dta_s = a_dta[i];
+   if ( p_dta_s && len < (int) sizeof riga_dmp )
+     len += snprintf(riga_dmp + len, sizeof riga_dmp - len, " %d%s",
+                     p_dta_s->dtp, p_dta_s->next ? "R" : " ");
+   }
+ for ( int i=0; i<NUMELE(a_dt2); i++ ) {
+   p_dt2_s = a_dt2[i];
+   if ( p_dt2_s && len < (int) sizeof riga_dmp )
+     len += snprintf(riga_dmp + len, sizeof riga_dmp - len, " %d%s",
+                     p_dt2_s->dt2, p_dt2_s->next ? "R" : " ");
+   }
+
+ pe = findevtn(smf80hdr->SMF80EVT, root_evt);        // elemento con l'evento
+ fprintf(fdmp," Rec.nr.  Evt (hx) Evento   Sezioni\n");
+ fprintf(fdmp," -------- --- ---- -------- <-------------------------------------------->\n");
+ fprintf(fdmp,"%9d %3d   %02x % 8s  %s\n", t_smfl, smf80hdr->SMF80EVT, smf80hdr->SMF80EVT,
+         pe ? pe->evt_name : "?", riga_dmp);
+ hexprt(fdmp, "SMF 80 header", (char *) smf80hdr, SMF80HDR_SIZE, pgm_name);
+
+ for ( int i=0; i<NUMELE(a_dta); i++ ) {            // stampa in hex le sezioni DTA
+   p_dta_s = (rel_sect *) a_dta[i];
+   if ( !p_dta_s ) continue;
+   s_desc = findsez(p_dta_s->dtp, root_sez);
+   while ( p_dta_s ) {
+     sprintf(head, "Rel %d('%x') %s", p_dta_s->dtp, p_dta_s->dtp, s_desc);
+     hexprt(fdmp, head, (char *) p_dta_s->rel, p_dta_s->dln, pgm_name);
+     p_dta_s = (rel_sect *) p_dta_s->next;
+     }
+   }
+ for ( int i=0; i<NUMELE(a_dt2); i++ ) {            // stampa in hex le sezioni DT2
+   p_dt2_s = (rel_sec2 *) a_dt2[i];
+   if ( !p_dt2_s ) continue;
+   s_desc = findsez(p_dt2_s->dt2, root_sez);
+   while ( p_dt2_s ) {
+     sprintf(head, "Ext %d('%x') %s", p_dt2_s->dt2, p_dt2_s->dt2, s_desc);
+     hexprt(fdmp, head, (char *) p_dt2_s->rel2, p_dt2_s->dl2, pgm_name);
+     p_dt2_s = (rel_sec2 *) p_dt2_s->next;
+     }
+   }
+}
+
+/* ------------------------------------------------------ */
+/* esegue il comando TSO LISTALC STATUS e ne stampa       */
+/* l'output (da smf80dmp.c, mantenuta per verifica)       */
+/* ------------------------------------------------------ */
+void listalc( void ) {
+  FILE *flis;
+  char *buffer = malloc(100);
+  char fname[] = "u/<UserId>/result.log";
+
+  int rc = system("listalc status");
+  if ( (flis = fopen(fname, "rb" )) == NULL) {
+    printf("E: errore apertura file %s\n", fname);
+    return;
+  }
+/* carico dell'output del comando         */
+ printf(" Rec   LL -- stringa\n");
+ for ( int i = 0; ; i++) {
+   num = fread( buffer, 1, sizeof buffer, flis );
+   if ( feof(flis) ) break;    /* finito input */
+   printf("% 4d % 4d -> %s\n", i, num, buffer);
+ }
+
+  return;
 }

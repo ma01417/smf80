@@ -84,6 +84,9 @@ void push_evt(const char * name, int value, char * desc){
    lk->evt_value = value;
    lk->evt_desc  = createStr(desc);
    lk->evt_numf  = 0;
+   lk->evt_nume  = 0;
+   lk->evt_viol  = 0;
+   lk->evt_warn  = 0;
    // azzera il puntatore al prossimo nodo
    lk->next = NULL;
 // se lista ancora non allocata mette puntatore al primo nodo

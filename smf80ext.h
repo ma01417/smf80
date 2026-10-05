@@ -28,6 +28,15 @@
 #define TRUE  1
 #define FALSE 0
 
+// macro per testare un bit in una word (8 bit)
+#define CHECK_BIT8(var, pos) (((var) >> 7-(pos)) & 1)
+
+// macro per testare un bit in una dword (16 bit)
+#define CHECK_BIT16(var, pos) (((var) >> 15-(pos)) & 1)
+
+// macro per testare un bit in una fword (32 bit)
+#define CHECK_BIT32(var, pos) (((var) >> 31-(pos)) & 1)
+
 // macro to determine the number of elements of an array
 #define NUMELE(x) (sizeof x / sizeof *x)
 // macros to give the maximum and minimum between two integer
@@ -80,8 +89,10 @@ typedef struct lk_sez_elem {
 typedef struct lk_evt_elem {
   uint8_t evt_value;
   char    evt_name[9];
-  long    evt_numf;
-  long    evt_nume;
+  long    evt_numf;            /* numero occorrenze osservate   */
+  long    evt_nume;            /* numero elementi estratti      */
+  long    evt_viol;            /* numero violazioni osservate   */
+  long    evt_warn;            /* numero warning osservati      */
   struct string * evt_desc;
   struct lk_evt_elem * next;
 } st_sm80_evt;
@@ -171,7 +182,7 @@ extern list_parameter * findparm(char *name, uint8_t num, list_parameter *root_p
 extern char           * getlrow( char * buff, FILE * parm );                                      // lettura di una riga logica di parametri
 extern int              gettrow(char *buff, runparm *p_param);                                    // tokenizza la riga logica
 extern void             get_cl_time(char * t);                                                    // return a string with current local time
-extern st_sm80_cls    * get_CDT( void );                                                          // get linkedlist of RACF Classes
+extern st_sm80_cls    * get_CDT( const char * mod_name );                                         // get linkedlist of RACF Classes
 extern st_sm80_evq    * getEvq(char *filename, char *member, char *d_evt);                        // get linkedlist of event qual for an event
 extern st_sm80_evt    * getEvt(char *filename, char *member);                                     // get linkedlist of events
 extern char           * getExt(const char *path_name, char *ext);                                 // get file name and extention

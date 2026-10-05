@@ -11,3 +11,11 @@ makedmp.txt
 maketst.txt
 SYSOUT.txt
 JDSNTST.txt
+old/
+Esecuzione.txt
+TestDSN.txt
+makeprod.txt
+maketest.txt
+makexxxx.txt
+testDSname_svc99.txt
+*.pdf

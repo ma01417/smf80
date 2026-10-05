@@ -28,7 +28,7 @@ const uint8_t l_sez[] = {0,0,0,0,0,0,0,1,1,17,33};
 
 // lista valori description ricercabili e corrispondenti valori esadecimali
 const char l_descr[][10] = {"VIOLATION", "USRNOTDEF", "WARNING"};
-const uint16_t val_descr [] = {0x8000, 0x4000, 0x0100};
+const uint16_t val_descr [] = {0x8000, 0x4000, 0x1000};
 const char lddescr[][30] = {"The event is a violation",
                             "User is not defined to RACF",
                             "The event is a warning"};

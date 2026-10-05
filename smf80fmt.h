@@ -22,6 +22,7 @@
 
 // #pragma pack(push)
 #pragma pack(1)
+
 /* map out SMF80HDR */
 typedef struct {
 //  uint16_t SMF80LEN; non accedo a RDW

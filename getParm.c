@@ -78,7 +78,7 @@ FILE * fprm;                        // file descriptor per parametri
 
 // costanti da usare in header messaggi printf()
 const char mod_name[9] = "getParm";
-const char vid_name[9] = "       ";
+const char mod_vide[9] = "       ";
 
 // definizione delle funzioni interne
 void stampa_filtri(list_parameter *p_par, int num_car);  // stampa elenco dei filtri per la caratteristica fornita
@@ -109,11 +109,9 @@ extern runparm *getParm(char *filePARM, char *fileCNTL, st_sm80_evt *root_evt) {
     exit(8);
     }
 
-// caricamento classi RACF -- qui eventuali altri caricamenti
-// root_CDT = getCls(fileCNTL, "SM80CLS");   // pre-caricate da REXX eseguita in JCL
-
 // caricamento classi RACF -- direttamente via RACROUTE TYPE=STAT
-  root_cls = get_CDT();                     // ottenuta in diretta
+  printf(" \n% 8s %s Estrazione caratteristiche classi RACF\n", mod_name, l_t);
+  root_cls = get_CDT(mod_vide);                   // ottenuta in diretta
 
 /* -------------------------------------------------------------------------------- */
 /*                                                                                  */
@@ -168,7 +166,7 @@ extern runparm *getParm(char *filePARM, char *fileCNTL, st_sm80_evt *root_evt) {
 // se tutto ok prosegue, altrimenti esce
   if (max_rc) {
     printf(" \n% 8s (%d) sono stati riscontrati degli errori nei parametri forniti per l'elaborazione\n",mod_name, max_rc);
-    printf("%s controlla i messaggi e correggi prima di rieseguire\n\n",vid_name);
+    printf("%s controlla i messaggi e correggi prima di rieseguire\n\n",mod_vide);
     exit(max_rc);
   }
 // verifica di quanto caricato e stampa resoconto dei filtri

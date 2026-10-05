@@ -56,7 +56,7 @@ void racseq_free_profile(RacseqProfile *p);
 st_sm80_cls *root_cls = NULL;
 st_sm80_cls *p_cls    = NULL;
 
-extern st_sm80_cls *get_CDT( void ) {
+extern st_sm80_cls *get_CDT( const char * mod_name ) {
     RacseqProfile p;
     RacseqStatus  st;
     RacseqRC      rc;
@@ -83,10 +83,10 @@ extern st_sm80_cls *get_CDT( void ) {
 
   // fine estrazione dei profili della classe _CDT
     if (rc == RACSEQ_NO_MORE)
-        printf("Fine scansione: %d profili trovati, nessun altro\n", count);
+        printf("%s Fine scansione: %d profili trovati, nessun altro\n", mod_name, count);
     else if (rc == RACSEQ_ERROR)
-        fprintf(stderr, " Errore R_admin: SAFRC=%d RACFRC=%d RACFRS=%d\n",
-                st.safrc, st.racfrc, st.racfrs);
+        fprintf(stderr, "%s Errore R_admin: SAFRC=%d RACFRC=%d RACFRS=%d\n",
+                "get_CDT ", st.safrc, st.racfrc, st.racfrs);
 
     return root_cls; // restituisce puntatore alla lista delle classi estratte
 }
@@ -197,17 +197,6 @@ void push_cls(const char * name, int maxL, int act, int ope, int mix, char * RC,
    lk->cls_RC     = createStr(RC);
    // azzera il puntatore al prossimo nodo
    lk->next       = NULL;
-// per controllo
-/*
-    fprintf(stderr,"%8s", name);
-    fprintf(stderr," Ml %d", maxL);
-    fprintf(stderr," Ac %d", act);
-    fprintf(stderr," Op %d", ope);
-    fprintf(stderr," Mx %d", mix);
-    fprintf(stderr," RC %s", RC);
-    fprintf(stderr," Gr %d (%s)", typ, mem);
-    fprintf(stderr," De '%s'\n", desc);
-*/
 // se lista ancora non allocata mette puntatore al primo nodo
    if ( root_cls == NULL) {
       root_cls = lk;
