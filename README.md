@@ -6,22 +6,20 @@ Autore: A.Brezzi <alessandro.brezzi@gmail.com>
 
 ## Descrizione
 
-Il progetto raccoglie un insieme di programmi e funzioni C, scritti per
+Il progetto raccoglie un programmi e relative funzioni C, scritti per
 essere compilati sotto z/OS (compilatore `xlc`, code page IBM-1140/EBCDIC),
 per elaborare i record SMF tipo 80 (eventi RACF) e tipo 81
 (inizializzazione RACF).
 
-I due programmi principali sono:
-
-- **`smf80dmp.c`** — Filtra i record SMF 80 in base a un file di criteri e
-  ne produce una stampa esadecimale formattata (dump), comprensiva di
-  header e delle varie sezioni relocabili DTA e DT2.
-- **`smf80ext.c`** — Filtra i record SMF 80 in base a un file di criteri e
-  ne crea un estratto (in formato originale) rispondente ai filtri
-  forniti, da utilizzare per ulteriori elaborazioni a valle.
-
-Entrambi i programmi condividono la stessa logica di parsing dei criteri
-di filtro e si appoggiano alle funzioni di supporto elencate più sotto.
+Il programma principale è 
+- **`smf80ext.c`** — Filtra i record SMF 80 in base a un file di criteri ed
+  in base alle DD allocate non DUMMY:
+  ° UTI002-> ne crea un estratto (in formato originale) rispondente ai filtri
+    forniti, da utilizzare per ulteriori elaborazioni a valle.
+  ° UTIDMP-> produce una stampa in formato DUMP esadecimale dell'header e di
+    tutte le sezioni rilocabili DTA e DT2 presenti nel record
+  ° UTIDEC-> una decodifica in chiaro del contenuto dei record SMF 81 presenti
+    nel file / concatenazione in input UTI001
 
 ## Criteri di filtro (file DD:UTIPARM)
 
@@ -34,26 +32,27 @@ Il file di criteri è un file sequenziale in cui ogni riga ha la forma:
 
 `<nome car>` è uno dei campi del record SMF 80 riconosciuti:
 
-| Nome   | Descrizione                            | Campo      |
-|--------|-----------------------------------------|------------|
-| EVENT  | Evento                                  | SMF80EVT   |
-| USER   | User associato                           | SMF80USR   |
-| RESULT | Event Qualifier                          | SMF80EVQ   |
-| JOBNAM | AS name                                  | SMF80JBN   |
-| REASN  | Reason for logging                       | SMF80REA   |
-| AUTH   | Autorità usate                           | SMF80ATH   |
+| Nome   | Descrizione                              | Campo         |
+|--------|------------------------------------------|---------------|
+| EVENT  | Evento                                   | SMF80EVT      |
+| USER   | User associato                           | SMF80USR      |
+| RESULT | Event Qualifier                          | SMF80EVQ      |
+| JOBNAM | AS name                                  | SMF80JBN      |
+| REASN  | Reason for logging                       | SMF80REA      |
+| AUTH   | Autorità usate                           | SMF80ATH      |
 | RES    | Resource name                            | rel. sect. 01 |
 | USRJES | Resource Owner in JESSPOOL               | rel. sect. 01 |
 | CLASS  | Class name                               | rel. sect. 17 |
-| PROF   | Profile usato                            | rel. sect. 33 |
+| PROF   | Profilo usato                            | rel. sect. 33 |
 
 `<op>` può essere:
 
-| Operatore | Significato |
-|-----------|-------------|
-| `=`  | uguale a uno dei valori nella lista (OR) |
-| `<>` | diverso da tutti i valori nella lista (AND) |
-| `ABR` | abbreviato, uno dei valori nella lista è abbreviazione del valore nel record |
+| Operatore | Significato                                 |
+|-----------|---------------------------------------------|
+|   `=`     | uguale a uno dei valori nella lista (OR)    |
+|  `<>`     | diverso da tutti i valori nella lista (AND) |
+|  `ABR`    | abbreviato, uno dei valori nella lista è    |
+|           | abbreviazione del valore nel record         |
 
 `<lista valori>`: elenco dei valori da ricercare; la lista può continuare
 su più righe terminando la riga con `+`. La lunghezza massima di ogni
@@ -64,15 +63,22 @@ record è selezionato solo se soddisfa tutti i criteri.
 
 ## DD utilizzate
 
-| DD          | I/O    | Descrizione |
-|-------------|--------|--------------|
-| `UTIPARM`   | input  | file sequenziale con i criteri di estrazione |
-| `UTI001`    | input  | file sequenziale VBS (o concatenazione) con i record SMF da filtrare |
-| `UTICNTL`   | input  | PDS FB 80 con eventi ed event qualifier per verifica e decodifica |
-| `UTI002`    | output | file sequenziale VBA con l'esito del filtro (dump esadecimale per `smf80dmp`, estratto per `smf80ext`) |
+| DD          | I/O    | Descrizione                                          |
+|-------------|--------|------------------------------------------------------|
+| `UTIPARM`   | input  | file sequenziale con i criteri di estrazione         |
+| `UTI001`    | input  | file sequenziale VBS (o concatenazione) con i record | 
+|             |        | SMF da filtrare                                      | 
+| `UTICNTL`   | input  | PDS FB 80 con eventi ed event qualifier per verifica |
+|             |        | e decodifica                                         |
+| `UTI002`    | output | file sequenziale VBS con i record estratti in base   |
+|             |        | al filtro                                            |
+| `UTIDMP`    | output | file sequenziale VBA con il dump esadecimale dei     |
+|             |        | record estratti in base al filtro                    |
+| `UTIDEC`    | output | file sequenziale VBA con la decodifica dei parametri |
+|             |        | di RACF alla partenza                                |
 
 Autorizzazioni richieste: `READ` sui dataset SMF di input, `ALTER`/`UPDATE`
-sul dataset di output (`UTI002`).
+sul dataset di output.
 
 Uso: tramite JCL, con le DD sopra elencate preallocate.
 
@@ -80,7 +86,6 @@ Uso: tramite JCL, con le DD sopra elencate preallocate.
 
 **Programmi principali**
 
-- `smf80dmp.c` — dump esadecimale dei record SMF 80 filtrati
 - `smf80ext.c` — estrazione dei record SMF 80 filtrati
 - `smf81dec.c` — decodifica dei record SMF 81 (inizializzazione RACF), richiamato da `smf80ext`
 
